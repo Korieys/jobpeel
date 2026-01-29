@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { auth } from "@/lib/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function SignupPage() {
     const { signInWithGoogle } = useAuth();
@@ -15,12 +17,65 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
 
     const handleEmailSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await createUserWithEmailAndPassword(auth, email, password);
+            // 1. Verify Waitlist Status First
+            const { collection, query, where, getDocs } = await import("firebase/firestore");
+            const waitlistRef = collection(db, "jobpeel_waitlist");
+
+            // A. Check Direct Email
+            const qEmail = query(waitlistRef, where("work_email", "==", email));
+            const snapEmail = await getDocs(qEmail);
+
+            let isApproved = false;
+            snapEmail.forEach((doc) => {
+                if (doc.data().status === "approved") isApproved = true;
+            });
+
+            // B. Check Domain (if not already approved)
+            if (!isApproved && email) {
+                const domain = email.split('@')[1];
+                if (domain) {
+                    const qDomain = query(waitlistRef, where("domains", "array-contains", domain));
+                    const snapDomain = await getDocs(qDomain);
+                    snapDomain.forEach((doc) => {
+                        if (doc.data().status === "approved") isApproved = true;
+                    });
+                }
+            }
+
+            // C. Check Admin Emails (if not already approved)
+            if (!isApproved && email) {
+                const qAdmin = query(waitlistRef, where("admin_emails", "array-contains", email));
+                const snapAdmin = await getDocs(qAdmin);
+                snapAdmin.forEach((doc) => {
+                    if (doc.data().status === "approved") isApproved = true;
+                });
+            }
+
+            if (!isApproved) {
+                throw new Error("Your email is not approved for the pilot yet. Please apply for the waitlist.");
+            }
+
+            // 2. Create Authentication
+            const { user } = await createUserWithEmailAndPassword(auth, email, password);
+
+            // Create user profile in Firestore
+            await setDoc(doc(db, "users", user.uid), {
+                firstName,
+                lastName,
+                phoneNumber,
+                email,
+                photoURL: "",
+                createdAt: new Date().toISOString()
+            });
+
             toast.success("Account created!");
             router.push("/dashboard");
         } catch (error: any) {
@@ -86,6 +141,42 @@ export default function SignupPage() {
                         </div>
 
                         <form onSubmit={handleEmailSignup} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-500 uppercase mb-1.5 ml-1">First Name</label>
+                                    <input
+                                        type="text"
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 placeholder:text-zinc-600"
+                                        placeholder="John"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-500 uppercase mb-1.5 ml-1">Last Name</label>
+                                    <input
+                                        type="text"
+                                        value={lastName}
+                                        onChange={(e) => setLastName(e.target.value)}
+                                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 placeholder:text-zinc-600"
+                                        placeholder="Doe"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1.5 ml-1">Phone Number <span className="text-zinc-600 font-normal lowercase">(optional)</span></label>
+                                <input
+                                    type="tel"
+                                    value={phoneNumber}
+                                    onChange={(e) => setPhoneNumber(e.target.value)}
+                                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 placeholder:text-zinc-600"
+                                    placeholder="+1 (555) 000-0000"
+                                />
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-bold text-zinc-500 uppercase mb-1.5 ml-1">Email</label>
                                 <div className="relative">

@@ -9,8 +9,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 import jsPDF from "jspdf";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardPage() {
+    const { user, userProfile } = useAuth();
     const [resumeText, setResumeText] = useState<string | null>(null);
     const [jobData, setJobData] = useState<any>(null);
     const [coverLetter, setCoverLetter] = useState<string>("");
@@ -64,7 +66,7 @@ export default function DashboardPage() {
             const res = await fetch("/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ resumeText, jobData, tone }),
+                body: JSON.stringify({ resumeText, jobData, tone, userProfile }),
                 signal: abortControllerRef.current.signal
             });
 
@@ -73,6 +75,23 @@ export default function DashboardPage() {
             const data = await res.json();
             setCoverLetter(data.coverLetter);
             toast.success("Cover Letter Generated!");
+
+            // Track Application Generation
+            if (user && userProfile && jobData) {
+                const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
+                const { db } = await import("@/lib/firebase");
+
+                const userDomain = userProfile.email?.split('@')[1] || "";
+
+                await addDoc(collection(db, "applications"), {
+                    userId: user.uid,
+                    userEmail: userProfile.email,
+                    userDomain: userDomain.toLowerCase(),
+                    jobTitle: jobData.title,
+                    jobCompany: jobData.company,
+                    createdAt: serverTimestamp()
+                });
+            }
         } catch (e: any) {
             if (e.name === 'AbortError') {
                 toast.info("Generation cancelled");

@@ -1,8 +1,21 @@
 "use client";
 
-import { User, Mail, MapPin, Briefcase, Plus } from "lucide-react";
+import { User, Mail, MapPin, Briefcase, Plus, Phone } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import Link from "next/link";
 
 export default function ProfilePage() {
+    const { user, userProfile } = useAuth();
+
+    // Fallback display if profile is loading or incomplete
+    const displayName = userProfile?.firstName && userProfile?.lastName
+        ? `${userProfile.firstName} ${userProfile.lastName}`
+        : user?.displayName || "User";
+
+    const initials = userProfile?.firstName && userProfile?.lastName
+        ? `${userProfile.firstName[0]}${userProfile.lastName[0]}`
+        : user?.email?.[0].toUpperCase() || "U";
+
     return (
         <div className="space-y-8">
             {/* Header */}
@@ -15,8 +28,12 @@ export default function ProfilePage() {
             <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-8 backdrop-blur-sm shadow-xl">
                 <div className="flex flex-col md:flex-row gap-8 items-start">
                     <div className="relative group">
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white shadow-2xl ring-4 ring-black">
-                            KD
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white shadow-2xl ring-4 ring-black overflow-hidden">
+                            {user?.photoURL ? (
+                                <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                                initials
+                            )}
                         </div>
                         <button className="absolute bottom-0 right-0 p-1.5 bg-zinc-800 rounded-full border border-zinc-700 text-white hover:bg-zinc-700 transition-colors">
                             <Plus className="w-4 h-4" />
@@ -25,29 +42,27 @@ export default function ProfilePage() {
 
                     <div className="flex-1 space-y-6">
                         <div>
-                            <h2 className="text-2xl font-bold text-white">Kai Dixon</h2>
+                            <h2 className="text-2xl font-bold text-white">{displayName}</h2>
                             <p className="text-zinc-500 font-medium">Product Designer</p>
                         </div>
 
                         <div className="flex flex-wrap gap-4 text-sm text-zinc-400">
                             <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
                                 <Mail className="w-4 h-4" />
-                                kai@example.com
+                                {user?.email}
                             </div>
-                            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
-                                <MapPin className="w-4 h-4" />
-                                San Francisco, CA
-                            </div>
-                            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
-                                <Briefcase className="w-4 h-4" />
-                                Open to work
-                            </div>
+                            {userProfile?.phoneNumber && (
+                                <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                    <Phone className="w-4 h-4" />
+                                    {userProfile.phoneNumber}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <button className="px-4 py-2 bg-white text-zinc-950 font-bold rounded-xl hover:bg-zinc-200 transition-colors text-sm">
+                    <Link href="/dashboard/settings" className="px-4 py-2 bg-white text-zinc-950 font-bold rounded-xl hover:bg-zinc-200 transition-colors text-sm">
                         Edit Profile
-                    </button>
+                    </Link>
                 </div>
             </div>
 

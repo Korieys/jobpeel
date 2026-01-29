@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Upload, FileText, CheckCircle, AlertTriangle, RefreshCw, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 
+import ComingSoonOverlay from "@/components/ui/ComingSoonOverlay";
+
 export default function ResumeOptimizerPage() {
     const [status, setStatus] = useState<"idle" | "scanning" | "complete">("idle");
     const [score, setScore] = useState(0);
@@ -28,7 +30,11 @@ export default function ResumeOptimizerPage() {
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 relative">
+            <ComingSoonOverlay
+                title="Resume Optimizer"
+                description="Our AI-powered optimization engine is almost ready. Get instant feedback on your resume tailored to specific job descriptions."
+            />
             <header>
                 <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Resume Optimizer</h1>
                 <p className="text-zinc-400">AI-driven ATS analysis and keyword optimization.</p>

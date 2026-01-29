@@ -3,11 +3,18 @@ import { openai } from "@/lib/openai";
 
 export async function POST(req: NextRequest) {
     try {
-        const { resumeText, jobData, tone = "professional" } = await req.json();
+        const { resumeText, jobData, tone = "professional", userProfile } = await req.json();
 
         if (!resumeText || !jobData) {
             return NextResponse.json({ error: "Missing resume or job data" }, { status: 400 });
         }
+
+        const contactInfo = userProfile ? `
+        CANDIDATE CONTACT INFO (PRIORITIZE THIS OVER RESUME):
+        Name: ${userProfile.firstName} ${userProfile.lastName}
+        Phone: ${userProfile.phoneNumber}
+        Email: ${userProfile.email}
+        ` : "";
 
         const jobContext = `
       Title: ${jobData.title}
@@ -22,6 +29,8 @@ export async function POST(req: NextRequest) {
       
       TONE: ${tone.toUpperCase()}.
       
+      ${contactInfo}
+
       JOB DETAILS:
       ${jobContext}
       
@@ -35,7 +44,7 @@ export async function POST(req: NextRequest) {
       - **NO "NOT A X, BUT A Y"**: Do not use sentence structures like "I'm not just a [role], I'm a [value]" or "More than just a...".
       - **NO HORIZONTAL RULES**: Do not use "---" or horizontal lines to separate sections or headers.
       - Be direct, confident, and specific.
-      - Do not include placeholders like "[Your Name]" -> Use the name from the resume if available, otherwise sign off with "Sincerely, A Passionate Candidate".
+      - **HEADER**: If User Contact Info is provided above, USE IT for the header/sign-off. If not, fallback to resume data.
       - Keep it concise (200-300 words).
       - Start with a strong hook that references the company or role specifically.
 

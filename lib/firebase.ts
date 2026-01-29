@@ -17,7 +17,7 @@ import { getStorage } from "firebase/storage";
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = getFirestore(app, "jobpeel2");
 const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 

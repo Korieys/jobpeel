@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
 
+
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
     try {
         const formData = await req.formData();

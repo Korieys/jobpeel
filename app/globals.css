@@ -2,6 +2,18 @@
 
 @theme {
   --font-sans: var(--font-roboto), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  --color-orange-50: #fff8f5;
+  --color-orange-100: #feefe8;
+  --color-orange-200: #fcdbc9;
+  --color-orange-300: #fabf9f;
+  --color-orange-400: #f8a879;
+  --color-orange-500: #f6985a;
+  --color-orange-600: #de8951;
+  --color-orange-700: #b87143;
+  --color-orange-800: #935b36;
+  --color-orange-900: #7b4c2d;
+  --color-orange-950: #432817;
 }
 
 :root {

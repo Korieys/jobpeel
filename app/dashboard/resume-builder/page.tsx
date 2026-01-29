@@ -3,9 +3,15 @@
 import { useState } from "react";
 import { LayoutTemplate, Plus, GripVertical, Download, Eye } from "lucide-react";
 
+import ComingSoonOverlay from "@/components/ui/ComingSoonOverlay";
+
 export default function ResumeBuilderPage() {
     return (
-        <div className="h-[calc(100vh-8rem)] flex flex-col">
+        <div className="h-[calc(100vh-8rem)] flex flex-col relative">
+            <ComingSoonOverlay
+                title="Resume Builder"
+                description="We're putting the finishing touches on our drag-and-drop resume builder. Create professional, ATS-friendly resumes in minutes."
+            />
             <header className="mb-6 flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Resume Builder</h1>
