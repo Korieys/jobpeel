@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdf-parse", "puppeteer"],
+  serverExternalPackages: ["pdfjs-dist", "puppeteer"],
 };
 
 export default nextConfig;

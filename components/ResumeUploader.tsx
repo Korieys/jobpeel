@@ -64,11 +64,17 @@ export function ResumeUploader({ onResumeParsed }: ResumeUploaderProps) {
                 toast.success("Resume saved to your account");
             }
 
-            if (!response.ok) {
-                throw new Error("Failed to parse resume");
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                throw new Error("Failed to parse server response");
             }
 
-            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to parse resume");
+            }
+
             if (data.text) {
                 onResumeParsed(data.text);
             } else {
@@ -98,6 +104,8 @@ export function ResumeUploader({ onResumeParsed }: ResumeUploaderProps) {
         if (e.target.files && e.target.files[0]) {
             processFile(e.target.files[0]);
         }
+        // Reset value to allow re-uploading the same file
+        e.target.value = "";
     };
 
     return (
