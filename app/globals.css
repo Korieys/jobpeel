@@ -23,7 +23,6 @@
 body {
   font-family: var(--font-roboto), sans-serif;
   background: #09090b;
-  /* Zinc 950 */
   color: #fafafa;
 }
 
@@ -33,7 +32,114 @@ body {
   }
 }
 
-/* Custom Scrollbar */
+/* ── Keyframe Animations ─────────────────────────────── */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-16px); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(2deg); }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Utility Classes ─────────────────────────────────── */
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+/* ── Glassmorphism ───────────────────────────────────── */
+
+.glass-card {
+  background: rgba(24, 24, 27, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card-hover:hover {
+  background: rgba(24, 24, 27, 0.8);
+  border-color: rgba(246, 152, 90, 0.2);
+  box-shadow:
+    0 0 0 1px rgba(246, 152, 90, 0.1),
+    0 20px 40px -12px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Gradient Text ───────────────────────────────────── */
+
+.gradient-text-orange {
+  background: linear-gradient(135deg, #f6985a 0%, #de8951 50%, #f8a879 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Glow Effects ────────────────────────────────────── */
+
+.glow-orange {
+  box-shadow: 0 0 40px rgba(246, 152, 90, 0.15), 0 0 80px rgba(246, 152, 90, 0.05);
+}
+
+.glow-orange-hover:hover {
+  box-shadow: 0 0 60px rgba(246, 152, 90, 0.25), 0 0 120px rgba(246, 152, 90, 0.1);
+}
+
+/* ── Custom Scrollbar ────────────────────────────────── */
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

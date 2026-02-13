@@ -60,7 +60,21 @@ export default function LoginPage() {
             if (!isApproved) {
                 const { signOut } = await import("firebase/auth");
                 await signOut(auth);
-                throw new Error("Your account is pending approval.");
+                const { joinWaitlist } = await import("@/lib/waitlistService");
+
+                toast("JobPeel is limited to waitlisted users.", {
+                    description: "Would you like to be added to the waitlist?",
+                    duration: Infinity,
+                    action: {
+                        label: "Join Waitlist",
+                        onClick: () => joinWaitlist(userCredential.user.email || "", userCredential.user.displayName || "")
+                    },
+                    cancel: {
+                        label: "No Thanks",
+                        onClick: () => { }
+                    }
+                });
+                return;
             }
 
             toast.success("Welcome back!");

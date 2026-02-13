@@ -60,7 +60,21 @@ export default function SignupPage() {
             }
 
             if (!isApproved) {
-                throw new Error("Your email is not approved for the pilot yet. Please apply for the waitlist.");
+                const { joinWaitlist } = await import("@/lib/waitlistService");
+
+                toast("JobPeel is limited to waitlisted users.", {
+                    description: "Would you like to be added to the waitlist?",
+                    duration: Infinity,
+                    action: {
+                        label: "Join Waitlist",
+                        onClick: () => joinWaitlist(email, `${firstName} ${lastName}`.trim())
+                    },
+                    cancel: {
+                        label: "No Thanks",
+                        onClick: () => { }
+                    }
+                });
+                return;
             }
 
             // 2. Create Authentication

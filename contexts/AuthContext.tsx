@@ -113,7 +113,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (!isApproved) {
                 await signOut(auth);
-                throw new Error("Your account is pending approval. Please join the waitlist or wait for your acceptance email.");
+                const { joinWaitlist } = await import("@/lib/waitlistService");
+
+                toast("JobPeel is limited to waitlisted users.", {
+                    description: "Would you like to be added to the waitlist?",
+                    duration: Infinity,
+                    action: {
+                        label: "Join Waitlist",
+                        onClick: () => joinWaitlist(user.email || "", user.displayName || "")
+                    },
+                    cancel: {
+                        label: "No Thanks",
+                        onClick: () => { }
+                    }
+                });
+                return;
             }
 
             // 2. Check if user exists in DB, if not create basic profile
