@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>JobPeel – Application copilot for your students</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; background: #020617; color: #f9fafb; }
+    .page { max-width: 720px; margin: 0 auto; padding: 64px 24px; text-align: left; }
+    h1 { font-size: 2.4rem; line-height: 1.1; margin-bottom: 16px; }
+    p { font-size: 1rem; line-height: 1.6; color: #e5e7eb; }
+    .highlight { color: #38bdf8; }
+    .cta-wrap { margin-top: 32px; display: flex; flex-direction: column; gap: 8px; max-width: 440px; }
+    .cta-button { background: #38bdf8; border: none; padding: 14px 20px; font-size: 1rem; font-weight: 600; border-radius: 999px; cursor: pointer; text-align: center; color: #0b1120; }
+    .cta-button:hover { opacity: 0.9; }
+    .cta-note { font-size: 0.9rem; color: #9ca3af; }
+    input[type="email"], input[type="text"] { padding: 12px 14px; border-radius: 999px; border: 1px solid #4b5563; background: #020617; color: #f9fafb; width: 100%; box-sizing: border-box; }
+    label { font-size: 0.9rem; color: #9ca3af; margin-bottom: 4px; display: block; }
+    .field { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- Clear outcome headline -->
+    <h1>
+      Help more students land interviews with
+      <span class="highlight">tailored applications on autopilot</span>
+    </h1>
+
+    <!-- Short explanation -->
+    <p>
+      JobPeel turns a student's resume and a job link into a focused cover
+      letter that matches the role, plus suggestions to tighten their resume.
+      Career staff stop rewriting documents from scratch and instead guide
+      students using drafts that are already aligned with each posting.
+    </p>
+
+    <!-- One focused CTA -->
+    <div class="cta-wrap">
+      <form>
+        <div class="field">
