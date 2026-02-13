@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
                 const res = await fetch(url, {
                     headers: {
                         "User-Agent":
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     },
                 });
                 const html = await res.text();
@@ -90,12 +90,27 @@ export async function POST(req: NextRequest) {
                     args: ['--no-sandbox', '--disable-setuid-sandbox']
                 });
                 const page = await browser.newPage();
-                await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
 
-                // Optimized loading
-                await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-                // Give it a moment for hydration/rendering
-                await new Promise(r => setTimeout(r, 2000));
+                // Set desktop viewport
+                await page.setViewport({ width: 1280, height: 800 });
+
+                await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+                // Optimized loading - try networkidle2 to wait for hydration
+                try {
+                    await page.goto(url, { waitUntil: "networkidle2", timeout: 45000 });
+                } catch (e) {
+                    console.warn("Navigation timeout, proceeding anyway...");
+                }
+
+                // Give it a longer moment for hydration/rendering
+                await new Promise(r => setTimeout(r, 4000));
+
+                // Small scroll to trigger lazy-loaded sections (like job descriptions)
+                await page.evaluate(() => {
+                    window.scrollBy(0, 500);
+                });
+                await new Promise(r => setTimeout(r, 1000));
 
                 const title = await page.title();
                 const text = await page.evaluate(() => document.body.innerText);
