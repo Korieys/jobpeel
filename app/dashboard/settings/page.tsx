@@ -1,23 +1,17 @@
 "use client";
 
-<<<<<<< HEAD
-import { User, Bell, Shield, Mail, CreditCard, Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { User, Bell, Shield, Smartphone, Mail, CreditCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-=======
-import { User, Bell, Shield, Smartphone, Mail, CreditCard } from "lucide-react";
-import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
+import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
     const { user, userProfile, updateUserProfile } = useAuth();
     const [activeTab, setActiveTab] = useState("profile");
-<<<<<<< HEAD
     const [saving, setSaving] = useState(false);
 
-    // Local form state — only writes to Firestore on save
+    // Local form state to track changes
     const [form, setForm] = useState({
         firstName: "",
         lastName: "",
@@ -25,7 +19,7 @@ export default function SettingsPage() {
         bio: "",
     });
 
-    // Populate form when profile loads
+    // Load initial data
     useEffect(() => {
         if (userProfile) {
             setForm({
@@ -37,233 +31,192 @@ export default function SettingsPage() {
         }
     }, [userProfile]);
 
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            await updateUserProfile(form);
-            toast.success("Profile updated!");
-        } catch {
-            toast.error("Failed to save changes");
-        } finally {
-            setSaving(false);
-        }
-    };
-
     const hasChanges =
         form.firstName !== (userProfile?.firstName || "") ||
         form.lastName !== (userProfile?.lastName || "") ||
         form.phoneNumber !== (userProfile?.phoneNumber || "") ||
         form.bio !== (userProfile?.bio || "");
-=======
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
+
+    const handleSave = async () => {
+        if (!hasChanges) return;
+        setSaving(true);
+        try {
+            await updateUserProfile(form);
+            toast.success("Profile updated successfully");
+        } catch {
+            toast.error("Failed to update profile");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const tabs = [
         { id: "profile", label: "Profile", icon: User },
-        { id: "account", label: "Account", icon: Shield },
         { id: "notifications", label: "Notifications", icon: Bell },
+        { id: "security", label: "Security", icon: Shield },
         { id: "billing", label: "Billing", icon: CreditCard },
     ];
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <header className="mb-8">
+        <div className="space-y-6">
+            <header>
                 <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Settings</h1>
-                <p className="text-zinc-400">Manage your account preferences and subscription.</p>
+                <p className="text-zinc-400">Manage your account preferences and settings.</p>
             </header>
 
-            <div className="grid md:grid-cols-[240px_1fr] gap-8">
-                {/* Sidebar */}
-                <div className="space-y-2">
+            <div className="flex flex-col md:flex-row gap-8">
+                {/* Sidebar Navigation */}
+                <nav className="w-full md:w-64 flex-shrink-0 space-y-1">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === tab.id
-                                ? "bg-zinc-800 text-white shadow-lg border border-white/5"
-                                : "text-zinc-400 hover:text-white hover:bg-white/5"
-                                }`}
+                            className={cn(
+                                "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-left",
+                                activeTab === tab.id
+                                    ? "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+                                    : "text-zinc-400 hover:text-white hover:bg-white/5 border border-transparent"
+                            )}
                         >
-                            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? "text-orange-500" : ""}`} />
+                            <tab.icon className="w-4 h-4" />
                             {tab.label}
                         </button>
                     ))}
-                </div>
+                </nav>
 
-                {/* Content */}
-                <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-8 min-h-[500px]">
+                {/* Content Area */}
+                <div className="flex-1 min-w-0">
                     {activeTab === "profile" && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-1">Public Profile</h3>
-                                <p className="text-sm text-zinc-500 mb-6">Manage how others view your profile.</p>
-
-                                <div className="flex items-center gap-6 mb-8">
-                                    <div className="relative">
-                                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-zinc-800 to-zinc-900 border-2 border-white/10 flex items-center justify-center text-2xl font-bold text-zinc-500 overflow-hidden">
-                                            {user?.photoURL ? (
-                                                <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
-                                            ) : (
-<<<<<<< HEAD
-                                                (form.firstName?.[0] || "") + (form.lastName?.[0] || user?.email?.[0]?.toUpperCase() || "U")
-=======
-                                                (userProfile?.firstName?.[0] || "") + (userProfile?.lastName?.[0] || user?.email?.[0]?.toUpperCase() || "U")
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
-                                            )}
-                                        </div>
-                                        <button className="absolute bottom-0 right-0 p-2 bg-orange-600 rounded-full text-white hover:bg-orange-500 transition-colors shadow-lg border border-zinc-950">
-                                            <User className="w-3 h-3" />
-                                        </button>
+                        <div className="space-y-6 max-w-2xl">
+                            {/* Profile Picture */}
+                            <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-6">
+                                <h2 className="text-lg font-bold text-white mb-6">Profile Picture</h2>
+                                <div className="flex items-center gap-6">
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white ring-4 ring-black">
+                                        {user?.photoURL ? (
+                                            <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                                        ) : (
+                                            (form.firstName?.[0] || "") + (form.lastName?.[0] || user?.email?.[0]?.toUpperCase() || "U")
+                                        )}
                                     </div>
-                                    <div className="flex-1">
-                                        <div className="grid grid-cols-2 gap-4 mb-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">First Name</label>
-                                                <input
-                                                    type="text"
-<<<<<<< HEAD
-                                                    value={form.firstName}
-                                                    onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-=======
-                                                    defaultValue={userProfile?.firstName || ""}
-                                                    onChange={(e) => updateUserProfile({ firstName: e.target.value })}
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
-                                                    className="bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white w-full focus:outline-none focus:border-orange-500/50 transition-colors"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Last Name</label>
-                                                <input
-                                                    type="text"
-<<<<<<< HEAD
-                                                    value={form.lastName}
-                                                    onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-=======
-                                                    defaultValue={userProfile?.lastName || ""}
-                                                    onChange={(e) => updateUserProfile({ lastName: e.target.value })}
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
-                                                    className="bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white w-full focus:outline-none focus:border-orange-500/50 transition-colors"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Phone Number</label>
-                                            <input
-                                                type="tel"
-<<<<<<< HEAD
-                                                value={form.phoneNumber}
-                                                onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-=======
-                                                defaultValue={userProfile?.phoneNumber || ""}
-                                                onChange={(e) => updateUserProfile({ phoneNumber: e.target.value })}
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
-                                                className="bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white w-full focus:outline-none focus:border-orange-500/50 transition-colors"
-                                            />
-                                        </div>
+                                    <div className="space-y-2">
+                                        <button className="px-4 py-2 bg-white text-zinc-950 font-bold rounded-xl text-sm hover:bg-zinc-200 transition-colors">
+                                            Change Photo
+                                        </button>
+                                        <p className="text-xs text-zinc-500">JPG, GIF or PNG. 1MB max.</p>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Bio</label>
-                                        <textarea
-                                            rows={4}
-<<<<<<< HEAD
-                                            value={form.bio}
-                                            onChange={(e) => setForm({ ...form, bio: e.target.value })}
-=======
-                                            defaultValue={userProfile?.bio || ""}
-                                            onChange={(e) => updateUserProfile({ bio: e.target.value })}
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
-                                            className="w-full bg-black/20 border border-white/10 rounded-xl p-4 text-white focus:outline-none focus:border-orange-500/50 transition-colors resize-none"
-                                            placeholder="Tell us about yourself..."
+                            {/* Personal Information */}
+                            <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-6 space-y-4">
+                                <h2 className="text-lg font-bold text-white mb-2">Personal Information</h2>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">First Name</label>
+                                        <input
+                                            type="text"
+                                            value={form.firstName}
+                                            onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Last Name</label>
+                                        <input
+                                            type="text"
+                                            value={form.lastName}
+                                            onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
                                         />
                                     </div>
                                 </div>
-<<<<<<< HEAD
 
-                                {/* Save Button */}
-                                <div className="flex justify-end mt-6">
-                                    <button
-                                        onClick={handleSave}
-                                        disabled={!hasChanges || saving}
-                                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${hasChanges
-                                            ? "bg-orange-600 text-white hover:bg-orange-500 shadow-lg shadow-orange-900/30"
-                                            : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                                            }`}
-                                    >
-                                        <Check className="w-4 h-4" />
-                                        {saving ? "Saving..." : hasChanges ? "Save Changes" : "No Changes"}
-                                    </button>
-                                </div>
-=======
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === "account" && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-1">Account Security</h3>
-                                <p className="text-sm text-zinc-500 mb-6">Manage your login preferences.</p>
-
-                                <div className="space-y-4">
-                                    <div className="p-4 rounded-xl border border-white/5 bg-black/20 flex items-center justify-between">
-                                        <div>
-                                            <p className="text-white font-medium">Email Address</p>
-                                            <p className="text-sm text-zinc-500">{user?.email}</p>
-                                        </div>
-                                        <div className="px-3 py-1 rounded-full bg-green-500/10 text-green-500 text-xs font-medium border border-green-500/20">
-                                            Verified
-                                        </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Email Address</label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                                        <input
+                                            type="email"
+                                            value={user?.email || ""}
+                                            disabled
+                                            className="w-full bg-zinc-900/50 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-500 cursor-not-allowed"
+                                        />
                                     </div>
-
-                                    <button className="w-full py-3 rounded-xl border border-white/10 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors text-sm font-bold">
-                                        Reset Password
-                                    </button>
                                 </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Phone Number</label>
+                                    <div className="relative">
+                                        <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                                        <input
+                                            type="tel"
+                                            value={form.phoneNumber}
+                                            onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+                                            placeholder="+1 (555) 000-0000"
+                                            className="w-full bg-black/30 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Bio</label>
+                                    <textarea
+                                        value={form.bio}
+                                        onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                                        rows={3}
+                                        placeholder="Tell us a bit about yourself..."
+                                        className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:ring-1 focus:ring-orange-500/50 resize-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Save Button */}
+                            <div className="flex justify-end pt-4">
+                                <button
+                                    onClick={handleSave}
+                                    disabled={!hasChanges || saving}
+                                    className={cn(
+                                        "px-6 py-3 rounded-xl font-bold text-sm transition-all",
+                                        hasChanges && !saving
+                                            ? "bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-900/20 hover:scale-[1.02] active:scale-[0.98]"
+                                            : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                                    )}
+                                >
+                                    {saving ? "Saving..." : hasChanges ? "Save Changes" : "No Changes"}
+                                </button>
                             </div>
                         </div>
                     )}
 
                     {activeTab === "notifications" && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div>
-                                <h3 className="text-lg font-bold text-white mb-1">Notification Preferences</h3>
-                                <p className="text-sm text-zinc-500 mb-6">Choose how we communicate with you.</p>
+                        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-900/50 border border-white/5 rounded-3xl">
+                            <Bell className="w-12 h-12 text-zinc-700 mb-4" />
+                            <h3 className="text-lg font-bold text-white mb-2">Notifications</h3>
+                            <p className="text-zinc-500 text-sm max-w-md">
+                                Notification preferences coming soon. You'll be able to control email and push notifications here.
+                            </p>
+                        </div>
+                    )}
 
-                                <div className="space-y-4">
-                                    {["Product Updates", "New Features", "Security Alerts"].map((item) => (
-                                        <div key={item} className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-black/20">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
-                                                    <Mail className="w-5 h-5 text-zinc-500" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-white font-medium">{item}</p>
-                                                    <p className="text-xs text-zinc-500">Receive emails about {item.toLowerCase()}</p>
-                                                </div>
-                                            </div>
-                                            <div className="w-12 h-6 bg-orange-600 rounded-full relative cursor-pointer opacity-90 hover:opacity-100 transition-opacity">
-                                                <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-lg" />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                    {activeTab === "security" && (
+                        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-900/50 border border-white/5 rounded-3xl">
+                            <Shield className="w-12 h-12 text-zinc-700 mb-4" />
+                            <h3 className="text-lg font-bold text-white mb-2">Security</h3>
+                            <p className="text-zinc-500 text-sm max-w-md">
+                                Security settings coming soon. You'll be able to manage your password and 2FA here.
+                            </p>
                         </div>
                     )}
 
                     {activeTab === "billing" && (
-                        <div className="flex flex-col items-center justify-center h-[300px] text-center animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-6 border border-white/5">
-                                <CreditCard className="w-8 h-8 text-zinc-500" />
-                            </div>
-                            <h3 className="text-lg font-bold text-white mb-2">Free Plan</h3>
-                            <p className="text-zinc-500 max-w-xs mb-8">You are currently on the free tier. Upgrade to unlock premium features.</p>
-                            <button className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors">
-                                Upgrade to Pro
-                            </button>
+                        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-900/50 border border-white/5 rounded-3xl">
+                            <CreditCard className="w-12 h-12 text-zinc-700 mb-4" />
+                            <h3 className="text-lg font-bold text-white mb-2">Billing</h3>
+                            <p className="text-zinc-500 text-sm max-w-md">
+                                Billing management coming soon. You'll be able to view invoices and manage your subscription.
+                            </p>
                         </div>
                     )}
                 </div>

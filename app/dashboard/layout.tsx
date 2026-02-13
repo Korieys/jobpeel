@@ -12,12 +12,8 @@ import {
     Menu,
     X,
     Plus,
-<<<<<<< HEAD
     ShieldCheck,
     ClipboardList
-=======
-    ShieldCheck
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
@@ -30,11 +26,7 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
-<<<<<<< HEAD
     const { user, userProfile, loading } = useAuth();
-=======
-    const { user, loading } = useAuth();
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
@@ -79,16 +71,10 @@ export default function DashboardLayout({
         { name: "Generator", href: "/dashboard", icon: LayoutDashboard },
         ...(isAdmin ? [{ name: "University Admin", href: "/dashboard/admin", icon: ShieldCheck }] : []),
         { name: "Profile", href: "/dashboard/profile", icon: User },
-<<<<<<< HEAD
         { name: "Resumes", href: "/dashboard/resume-builder", icon: FileText },
         { name: "Optimizer", href: "/dashboard/resume-optimizer", icon: Zap },
         { name: "Interview Prep", href: "/dashboard/interview-prep", icon: MessageSquare },
         { name: "Tracker", href: "/dashboard/tracker", icon: ClipboardList },
-=======
-        { name: "Resumes", href: "/dashboard/resume-builder", icon: FileText, badge: "Soon" },
-        { name: "Optimizer", href: "/dashboard/resume-optimizer", icon: Zap, badge: "Soon" },
-        { name: "Interview Prep", href: "/dashboard/interview-prep", icon: MessageSquare, badge: "Soon" },
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
     ];
 
     const NavItem = ({ item }: { item: any }) => {
@@ -155,7 +141,6 @@ export default function DashboardLayout({
                                 <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full border border-white/10" />
                             ) : (
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
-<<<<<<< HEAD
                                     {userProfile?.firstName && userProfile?.lastName
                                         ? `${userProfile.firstName[0]}${userProfile.lastName[0]}`.toUpperCase()
                                         : user?.email?.[0].toUpperCase() || "U"}
@@ -167,13 +152,6 @@ export default function DashboardLayout({
                                         ? `${userProfile.firstName} ${userProfile.lastName}`
                                         : user?.displayName || "User"}
                                 </p>
-=======
-                                    {user?.email?.[0].toUpperCase() || "U"}
-                                </div>
-                            )}
-                            <div className="overflow-hidden">
-                                <p className="text-sm font-medium text-white truncate">{user?.displayName || "User"}</p>
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
                                 <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
                             </div>
                         </div>

@@ -76,7 +76,6 @@ export default function DashboardPage() {
             setCoverLetter(data.coverLetter);
             toast.success("Cover Letter Generated!");
 
-<<<<<<< HEAD
             // Track Application Generation → auto-add to Tracker
             if (user && jobData) {
                 const { createApplication } = await import("@/lib/applicationService");
@@ -91,22 +90,6 @@ export default function DashboardPage() {
                     location: jobData.location || "",
                     appliedDate: new Date().toISOString().split("T")[0],
                     source: "generator",
-=======
-            // Track Application Generation
-            if (user && userProfile && jobData) {
-                const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
-                const { db } = await import("@/lib/firebase");
-
-                const userDomain = userProfile.email?.split('@')[1] || "";
-
-                await addDoc(collection(db, "applications"), {
-                    userId: user.uid,
-                    userEmail: userProfile.email,
-                    userDomain: userDomain.toLowerCase(),
-                    jobTitle: jobData.title,
-                    jobCompany: jobData.company,
-                    createdAt: serverTimestamp()
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
                 });
             }
         } catch (e: any) {

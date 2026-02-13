@@ -3,7 +3,6 @@
 import { User, Mail, MapPin, Briefcase, Plus, Phone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
-<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
@@ -32,13 +31,7 @@ export default function ProfilePage() {
         })();
     }, [user]);
 
-=======
 
-export default function ProfilePage() {
-    const { user, userProfile } = useAuth();
-
-    // Fallback display if profile is loading or incomplete
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
     const displayName = userProfile?.firstName && userProfile?.lastName
         ? `${userProfile.firstName} ${userProfile.lastName}`
         : user?.displayName || "User";
@@ -74,11 +67,7 @@ export default function ProfilePage() {
                     <div className="flex-1 space-y-6">
                         <div>
                             <h2 className="text-2xl font-bold text-white">{displayName}</h2>
-<<<<<<< HEAD
                             <p className="text-zinc-500 font-medium">Job Seeker</p>
-=======
-                            <p className="text-zinc-500 font-medium">Product Designer</p>
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
                         </div>
 
                         <div className="flex flex-wrap gap-4 text-sm text-zinc-400">
@@ -104,7 +93,6 @@ export default function ProfilePage() {
             {/* Stats/Content Grid */}
             <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-zinc-900/50 border border-white/5 rounded-3xl p-6">
-<<<<<<< HEAD
                     <h3 className="text-lg font-bold text-white mb-4">Your Stats</h3>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-black/20 rounded-xl border border-white/5">
@@ -114,17 +102,6 @@ export default function ProfilePage() {
                         <div className="p-4 bg-black/20 rounded-xl border border-white/5">
                             <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Resumes</p>
                             <p className="text-2xl font-bold text-white">{resumeCount}</p>
-=======
-                    <h3 className="text-lg font-bold text-white mb-4">Resume Stats</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-black/20 rounded-xl border border-white/5">
-                            <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Generated</p>
-                            <p className="text-2xl font-bold text-white">24</p>
-                        </div>
-                        <div className="p-4 bg-black/20 rounded-xl border border-white/5">
-                            <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Files</p>
-                            <p className="text-2xl font-bold text-white">3</p>
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
                         </div>
                     </div>
                 </div>
@@ -135,15 +112,9 @@ export default function ProfilePage() {
                     </div>
                     <p className="text-white font-bold mb-1">Upload New Resume</p>
                     <p className="text-zinc-500 text-sm mb-4">Keep your profile fresh with your latest CV.</p>
-<<<<<<< HEAD
                     <Link href="/dashboard/resume-builder" className="text-sm font-bold text-orange-500 hover:text-orange-400 px-4 py-2 rounded-lg hover:bg-orange-500/10 transition-colors">
                         Go to Resume Builder
                     </Link>
-=======
-                    <button className="text-sm font-bold text-orange-500 hover:text-orange-400 px-4 py-2 rounded-lg hover:bg-orange-500/10 transition-colors">
-                        Upload PDF
-                    </button>
->>>>>>> 85dee1cdd8abf17bc256436f1b072e76013e7b9d
                 </div>
             </div>
         </div>
