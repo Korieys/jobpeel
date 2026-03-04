@@ -23,45 +23,45 @@ export async function POST(req: NextRequest) {
     `;
 
         const prompt = `
-      You are an expert career coach and professional copywriter.
+      You are an elite executive recruiter and professional copywriter writing a custom cover letter.
       
-      Goal: Write a highly persuasive, custom cover letter for the following candidate applying for the job described below.
+      Goal: Write a highly compelling, personalized cover letter for the following candidate applying for the job described below.
       
-      TONE: ${tone.toUpperCase()}.
+      TONE: ${tone.toUpperCase()}. The writing must be conversational, confident, and punchy.
       
       ${contactInfo}
 
       JOB DETAILS:
       ${jobContext}
       
-      CANDIDATE PASTEID RESUME:
+      CANDIDATE PROVIDED RESUME:
       ${resumeText}
       
-      OUTPUT RULES:
-      - **FORMAT AS PLAIN TEXT**. Do NOT use Markdown. Do NOT use bolding (**), italics (*), or headers (#).
-      - **CRITICAL**: Write like a human. Do NOT use clichéd AI phrases like "I am writing to express my interest", "It is with great enthusiasm", "seamlessly", "intersection of", "testament to", or "delve".
-      - **NO EM-DASHES**: Do not use em-dashes (—). Use commas or periods instead.
-      - **NO "NOT A X, BUT A Y"**: Do not use sentence structures like "I'm not just a [role], I'm a [value]" or "More than just a...".
-      - **NO HORIZONTAL RULES**: Do not use "---" or horizontal lines to separate sections or headers.
-      - Be direct, confident, and specific.
-      - **HEADER**: If User Contact Info is provided above, USE IT for the header/sign-off. If not, fallback to resume data.
-      - Keep it concise (200-300 words).
-      - Start with a strong hook that references the company or role specifically.
+      STRICT WRITING RULES (VIOLATION RESULTS IN FAILURE):
+      1. **FIRST PERSON ONLY**: You MUST write the cover letter in the first person ("I", "my") from the perspective of the candidate. NEVER write in the third person ("John is...", "He achieved...").
+      2. **COVER LETTER FORMAT**: This is a formal cover letter, NOT an email. Do not use email structures like "Subject:", "Hi [Name],", or "Best,". Begin with a formal greeting (e.g., "Dear Hiring Manager," or the specific person if known) and end with a professional sign-off (e.g., "Sincerely, [Candidate Name]").
+      3. **BANNED CLICHES**: You MUST NOT use phrases like "I am writing to express my interest", "I am particularly drawn to", "cross-functional teams", "delve", "testament to", "dynamic", "thrilled to apply", "unique blend", or "intersection of".
+      4. **NO ROBOTIC STRUCTURES**: Avoid the standard 3-paragraph "Intro -> I did X -> Outro" format. Start with an immediate, gripping hook about the company's specific product/challenge or a strong, relevant achievement from the candidate.
+      5. **SHOW, DON'T TELL**: Don't say "I am a strong leader." Instead, describe the exact size of the team managed or the specific outcome achieved (as found in the resume).
+      6. **NO FLUFF**: Remove weak verbs and filler words. Every sentence must add concrete value.
+      7. **FORMAT**: Plain text only. No markdown, no bolding, no headers, no bullet points, no "---".
+      8. **LIMIT**: Keep it under 250 words. Be ruthlessly brief and impactful.
 
-      **DATA INTEGRITY & TRUTH PROTOCOL (STRICT):**
-      1. **NO HALLUCINATIONS**: You are FORBIDDEN from inventing ANY facts, skills, or experiences not explicitly present in the provided resume. If the resume does not say they used "React", do NOT say they used "React".
-      2. **CALCULATE, DON'T GUESS**: If you mention "years of experience", you MUST manually calculate the time difference between the Start Date and End Date of the relevant roles in the resume. Do not use generic estimates like "10+ years" unless the dates actually sum to that. If dates are ambiguous, err on the side of caution or do not specify a number.
-      3. **EVIDENCE-BASED**: Every claim you make about the candidate's background must be traceable back to the resume text.
-      4. **MISSING DATA**: If a specific detail requested by the job description is missing from the resume, do NOT lie and say the candidate has it. Instead, pivot to a related strength that IS in the resume, or express eagerness to learn that specific skill.
+      STRICT DATA INTEGRITY (ZERO HALLUCINATIONS ALLOWED):
+      1. You may ONLY mention skills, jobs, metrics, and experiences explicitly listed in the CANDIDATE PROVIDED RESUME.
+      2. Do NOT invent proficiency in software, languages, or methodologies just to match the job description.
+      3. If a required job skill is missing from the resume, focus on a transferable skill they DO have, or highlight their proven ability to learn quickly (referencing a past fast-ramp). Do NOT claim they have the missing skill.
+      4. If summarizing years of experience, calculate it mathematically from the resume dates. Do not round up generously.
     `;
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                { role: "system", content: "You are a helpful expert assistant. You write completely natural, human-sounding text." },
+                { role: "system", content: "You are a master copywriter who writes in a punchy, direct, and overwhelmingly human voice. You despise generic corporate speak, AI-sounding vocabulary, and fluff." },
                 { role: "user", content: prompt },
             ],
-            temperature: 0.85, // Slightly higher for more variance
+            temperature: 0.7, // Lowered slightly to enforce stricter adherence to strict rules and facts
+
         });
 
         let coverLetter = completion.choices[0].message.content || "";

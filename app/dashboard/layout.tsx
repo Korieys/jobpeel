@@ -26,7 +26,7 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { user, userProfile, loading } = useAuth();
+    const { user, userProfile, loading, logout } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
@@ -135,6 +135,13 @@ export default function DashboardLayout({
                         <Settings className="w-5 h-5" />
                         <span>Settings</span>
                     </Link>
+                    <button
+                        onClick={() => logout()}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-red-400 hover:bg-red-400/5 transition-colors w-full text-left"
+                    >
+                        <LogOut className="w-5 h-5" />
+                        <span>Log Out</span>
+                    </button>
                     <div className="px-3 py-3 rounded-2xl bg-zinc-900 border border-white/5 mt-2">
                         <div className="flex items-center gap-3 mb-3">
                             {user?.photoURL ? (
@@ -184,6 +191,13 @@ export default function DashboardLayout({
                             ))}
                             <hr className="border-white/5 my-4" />
                             <NavItem item={{ name: "Settings", href: "/dashboard/settings", icon: Settings }} />
+                            <button
+                                onClick={() => logout()}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-red-400 transition-colors w-full text-left"
+                            >
+                                <LogOut className="w-5 h-5" />
+                                <span>Log Out</span>
+                            </button>
                         </div>
                     </div>
                 )}

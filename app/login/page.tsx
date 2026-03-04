@@ -21,62 +21,6 @@ export default function LoginPage() {
         setLoading(true);
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            // Waitlist Check
-            const { collection, query, where, getDocs } = await import("firebase/firestore");
-            // Import the configured db instance (which uses jobpeel2)
-            const { db } = await import("@/lib/firebase");
-            const waitlistRef = collection(db, "jobpeel_waitlist");
-
-            // A. Check Direct Email
-            const qEmail = query(waitlistRef, where("work_email", "==", userCredential.user.email));
-            const snapEmail = await getDocs(qEmail);
-
-            let isApproved = false;
-            snapEmail.forEach((doc) => {
-                if (doc.data().status === "approved") isApproved = true;
-            });
-
-            // B. Check Domain (if not already approved)
-            if (!isApproved && userCredential.user.email) {
-                const domain = userCredential.user.email.split('@')[1];
-                if (domain) {
-                    const qDomain = query(waitlistRef, where("domains", "array-contains", domain));
-                    const snapDomain = await getDocs(qDomain);
-                    snapDomain.forEach((doc) => {
-                        if (doc.data().status === "approved") isApproved = true;
-                    });
-                }
-            }
-
-            // C. Check Admin Emails (if not already approved)
-            if (!isApproved && userCredential.user.email) {
-                const qAdmin = query(waitlistRef, where("admin_emails", "array-contains", userCredential.user.email));
-                const snapAdmin = await getDocs(qAdmin);
-                snapAdmin.forEach((doc) => {
-                    if (doc.data().status === "approved") isApproved = true;
-                });
-            }
-
-            if (!isApproved) {
-                const { signOut } = await import("firebase/auth");
-                await signOut(auth);
-                const { joinWaitlist } = await import("@/lib/waitlistService");
-
-                toast("JobPeel is limited to waitlisted users.", {
-                    description: "Would you like to be added to the waitlist?",
-                    duration: Infinity,
-                    action: {
-                        label: "Join Waitlist",
-                        onClick: () => joinWaitlist(userCredential.user.email || "", userCredential.user.displayName || "")
-                    },
-                    cancel: {
-                        label: "No Thanks",
-                        onClick: () => { }
-                    }
-                });
-                return;
-            }
-
             toast.success("Welcome back!");
             router.push("/dashboard");
         } catch (error: any) {

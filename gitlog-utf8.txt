@@ -1,0 +1,29 @@
+﻿commit b4cdadb5ad1f9c4a4ef8c321f06b685d7394f119
+Author: Korieys <Korieydixon@yahoo.com>
+Date:   Fri Feb 13 02:54:57 2026 -0600
+
+    Enhance job scraper robustness for complex career portals
+
+commit dbfb23b6422f6d26d2f939af29a0dd4bbf93ac69
+Author: Korieys <Korieydixon@yahoo.com>
+Date:   Fri Feb 13 02:43:48 2026 -0600
+
+    Implement robust resume parsing with pdfjs-dist and fix re-upload issue
+
+commit db04fce6b743c5e6435a6ddc4ddf6918fea7d11b
+Author: Korieys <Korieydixon@yahoo.com>
+Date:   Fri Feb 13 01:58:51 2026 -0600
+
+    Fix navbar white line glitch
+
+commit d4fc72dc819224ef48fb852c3a80e31136402770
+Author: Korieys <Korieydixon@yahoo.com>
+Date:   Fri Feb 13 01:53:48 2026 -0600
+
+    Revamp landing page, add waitlist logic, fix email
+
+commit 62ee5d03ac34324c31b137bdf7de4c0a5cf88a64
+Author: Korieys <Korieydixon@yahoo.com>
+Date:   Fri Feb 13 00:54:00 2026 -0600
+
+    Fix favicon: remove default favicon.ico and add apple-icon.png

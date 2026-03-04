@@ -25,58 +25,6 @@ export default function SignupPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            // 1. Verify Waitlist Status First
-            const { collection, query, where, getDocs } = await import("firebase/firestore");
-            const waitlistRef = collection(db, "jobpeel_waitlist");
-
-            // A. Check Direct Email
-            const qEmail = query(waitlistRef, where("work_email", "==", email));
-            const snapEmail = await getDocs(qEmail);
-
-            let isApproved = false;
-            snapEmail.forEach((doc) => {
-                if (doc.data().status === "approved") isApproved = true;
-            });
-
-            // B. Check Domain (if not already approved)
-            if (!isApproved && email) {
-                const domain = email.split('@')[1];
-                if (domain) {
-                    const qDomain = query(waitlistRef, where("domains", "array-contains", domain));
-                    const snapDomain = await getDocs(qDomain);
-                    snapDomain.forEach((doc) => {
-                        if (doc.data().status === "approved") isApproved = true;
-                    });
-                }
-            }
-
-            // C. Check Admin Emails (if not already approved)
-            if (!isApproved && email) {
-                const qAdmin = query(waitlistRef, where("admin_emails", "array-contains", email));
-                const snapAdmin = await getDocs(qAdmin);
-                snapAdmin.forEach((doc) => {
-                    if (doc.data().status === "approved") isApproved = true;
-                });
-            }
-
-            if (!isApproved) {
-                const { joinWaitlist } = await import("@/lib/waitlistService");
-
-                toast("JobPeel is limited to waitlisted users.", {
-                    description: "Would you like to be added to the waitlist?",
-                    duration: Infinity,
-                    action: {
-                        label: "Join Waitlist",
-                        onClick: () => joinWaitlist(email, `${firstName} ${lastName}`.trim())
-                    },
-                    cancel: {
-                        label: "No Thanks",
-                        onClick: () => { }
-                    }
-                });
-                return;
-            }
-
             // 2. Create Authentication
             const { user } = await createUserWithEmailAndPassword(auth, email, password);
 

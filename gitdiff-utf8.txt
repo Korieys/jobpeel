@@ -1,0 +1,2326 @@
+﻿diff --git a/app/admin/waitlist/page.tsx b/app/admin/waitlist/page.tsx
+deleted file mode 100644
+index 7ce280a..0000000
+--- a/app/admin/waitlist/page.tsx
++++ /dev/null
+@@ -1,155 +0,0 @@
+-"use client";
+-
+-import { useEffect, useState } from 'react';
+-import { db } from '@/lib/firebase';
+-import { collection, query, where, getDocs, updateDoc, doc, orderBy } from 'firebase/firestore';
+-import { toast } from 'sonner';
+-import { Loader2, Check, User, Mail, School, ShieldCheck } from 'lucide-react';
+-
+-interface WaitlistUser {
+-    id: string;
+-    contact_name: string;
+-    work_email: string;
+-    program_name: string;
+-    program_type: string;
+-    status: string;
+-    created_at: any;
+-}
+-
+-export default function AdminWaitlistPage() {
+-    const [users, setUsers] = useState<WaitlistUser[]>([]);
+-    const [loading, setLoading] = useState(true);
+-    const [processingId, setProcessingId] = useState<string | null>(null);
+-
+-    useEffect(() => {
+-        fetchWaitlist();
+-    }, []);
+-
+-    const fetchWaitlist = async () => {
+-        setLoading(true);
+-        try {
+-            const q = query(
+-                collection(db, "jobpeel_waitlist"),
+-                where("status", "==", "pending"),
+-                orderBy("created_at", "desc")
+-            );
+-            const querySnapshot = await getDocs(q);
+-            const loadedUsers: WaitlistUser[] = [];
+-            querySnapshot.forEach((doc) => {
+-                loadedUsers.push({ id: doc.id, ...doc.data() } as WaitlistUser);
+-            });
+-            setUsers(loadedUsers);
+-        } catch (error) {
+-            console.error("Error fetching waitlist:", error);
+-            toast.error("Failed to load waitlist.");
+-        } finally {
+-            setLoading(false);
+-        }
+-    };
+-
+-    const handleApprove = async (user: WaitlistUser) => {
+-        setProcessingId(user.id);
+-        try {
+-            // 1. Update Firestore
+-            const userRef = doc(db, "jobpeel_waitlist", user.id);
+-            await updateDoc(userRef, { status: "approved" });
+-
+-            // 2. Send Email
+-            const response = await fetch('/api/waitlist/approve', {
+-                method: 'POST',
+-                headers: { 'Content-Type': 'application/json' },
+-                body: JSON.stringify({
+-                    email: user.work_email,
+-                    name: user.contact_name,
+-                    uid: user.id
+-                })
+-            });
+-
+-            if (!response.ok) throw new Error("Failed to send email");
+-
+-            toast.success(`Approved ${user.contact_name}`);
+-
+-            // Remove from local list
+-            setUsers(prev => prev.filter(u => u.id !== user.id));
+-
+-        } catch (error) {
+-            console.error("Approval error:", error);
+-            toast.error("Approval failed.", { description: "Database updated but email might have failed." });
+-        } finally {
+-            setProcessingId(null);
+-        }
+-    };
+-
+-    if (loading) {
+-        return (
+-            <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">
+-                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+-            </div>
+-        );
+-    }
+-
+-    return (
+-        <div className="min-h-screen bg-zinc-950 text-white p-8">
+-            <div className="max-w-5xl mx-auto">
+-                <div className="flex justify-between items-center mb-8">
+-                    <div>
+-                        <h1 className="text-3xl font-bold">Waitlist Management</h1>
+-                        <p className="text-zinc-500">Review and approve access for pilot users.</p>
+-                    </div>
+-                    <div className="bg-zinc-900 px-4 py-2 rounded-lg border border-white/10">
+-                        <span className="text-orange-500 font-bold">{users.length}</span> Pending
+-                    </div>
+-                </div>
+-
+-                {users.length === 0 ? (
+-                    <div className="text-center py-20 bg-zinc-900/50 rounded-2xl border border-white/5">
+-                        <ShieldCheck className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+-                        <h3 className="text-xl font-bold text-zinc-400">All caught up!</h3>
+-                        <p className="text-zinc-600">No pending waitlist requests.</p>
+-                    </div>
+-                ) : (
+-                    <div className="grid gap-4">
+-                        {users.map((user) => (
+-                            <div key={user.id} className="bg-zinc-900/50 border border-white/5 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-orange-500/20 transition-all">
+-                                <div className="space-y-1">
+-                                    <h3 className="font-bold text-lg flex items-center gap-2">
+-                                        {user.program_name}
+-                                        <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full border border-white/5">
+-                                            {user.program_type}
+-                                        </span>
+-                                    </h3>
+-
+-                                    <div className="flex flex-col sm:flex-row gap-4 text-sm text-zinc-400">
+-                                        <div className="flex items-center gap-2">
+-                                            <User className="w-4 h-4" />
+-                                            {user.contact_name}
+-                                        </div>
+-                                        <div className="flex items-center gap-2">
+-                                            <Mail className="w-4 h-4" />
+-                                            {user.work_email}
+-                                        </div>
+-                                    </div>
+-                                </div>
+-
+-                                <button
+-                                    onClick={() => handleApprove(user)}
+-                                    disabled={processingId === user.id}
+-                                    className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px] justify-center"
+-                                >
+-                                    {processingId === user.id ? (
+-                                        <Loader2 className="w-4 h-4 animate-spin" />
+-                                    ) : (
+-                                        <>
+-                                            <Check className="w-4 h-4" />
+-                                            Approve
+-                                        </>
+-                                    )}
+-                                </button>
+-                            </div>
+-                        ))}
+-                    </div>
+-                )}
+-            </div>
+-        </div>
+-    );
+-}
+diff --git a/app/api/scan-job/route.ts b/app/api/scan-job/route.ts
+index 9c8b081..4af0d5d 100644
+--- a/app/api/scan-job/route.ts
++++ b/app/api/scan-job/route.ts
+@@ -1,7 +1,10 @@
+ import { NextRequest, NextResponse } from "next/server";
+ import { openai } from "@/lib/openai";
+ import * as cheerio from "cheerio";
+-import puppeteer from "puppeteer";
++import puppeteer from "puppeteer-extra";
++import StealthPlugin from "puppeteer-extra-plugin-stealth";
++
++puppeteer.use(StealthPlugin());
+ 
+ /**
+  * Enhanced Job Scanner with Multi-Stage Fallback
+diff --git a/app/api/waitlist/approve/route.ts b/app/api/waitlist/approve/route.ts
+deleted file mode 100644
+index d1f2688..0000000
+--- a/app/api/waitlist/approve/route.ts
++++ /dev/null
+@@ -1,40 +0,0 @@
+-import { NextResponse } from 'next/server';
+-import { Resend } from 'resend';
+-import { db } from '@/lib/firebase';
+-import { doc, updateDoc } from 'firebase/firestore';
+-
+-const getResend = () => new Resend(process.env.RESEND_API_KEY);
+-
+-export async function POST(request: Request) {
+-    try {
+-        const { email, uid, name } = await request.json();
+-
+-        // Send email
+-        const { data, error } = await getResend().emails.send({
+-            from: 'JobPeel <onboarding@resend.dev>',
+-            to: [email],
+-            subject: "You're in! Welcome to JobPeel.",
+-            html: `
+-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+-          <h1>Your wait is over.</h1>
+-          <p>Hi ${name || 'Future User'},</p>
+-          <p>We've approved your access to <strong>JobPeel Pilot</strong>.</p>
+-          <p>You can now log in and start streamlining your career services.</p>
+-          <br/>
+-          <a href="https://jobpeel.app/login" style="background-color: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Log In to JobPeel</a>
+-          <br/><br/>
+-          <p>See you inside,</p>
+-          <p>The JobPeel Team</p>
+-        </div>
+-      `,
+-        });
+-
+-        if (error) {
+-            return NextResponse.json({ error }, { status: 400 });
+-        }
+-
+-        return NextResponse.json(data);
+-    } catch (error) {
+-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+-    }
+-}
+diff --git a/app/api/waitlist/welcome/route.ts b/app/api/waitlist/welcome/route.ts
+deleted file mode 100644
+index e5cc9d7..0000000
+--- a/app/api/waitlist/welcome/route.ts
++++ /dev/null
+@@ -1,30 +0,0 @@
+-import { NextResponse } from 'next/server';
+-import { Resend } from 'resend';
+-
+-const getResend = () => new Resend(process.env.RESEND_API_KEY);
+-
+-export async function POST(request: Request) {
+-    try {
+-        const { email, name } = await request.json();
+-
+-        const { data, error } = await getResend().emails.send({
+-            from: 'JobPeel <noreply@jobpeel.com>',
+-            to: [email],
+-            template: {
+-                id: "jobpeel-waitlist-sign-up",
+-                variables: {
+-                    name: name || 'there'
+-                }
+-            },
+-        });
+-
+-        if (error) {
+-            console.error("Resend Error:", error);
+-            return NextResponse.json({ error }, { status: 400 });
+-        }
+-
+-        return NextResponse.json(data);
+-    } catch (error) {
+-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+-    }
+-}
+diff --git a/app/dashboard/layout.tsx b/app/dashboard/layout.tsx
+index 327f294..3dfaa72 100644
+--- a/app/dashboard/layout.tsx
++++ b/app/dashboard/layout.tsx
+@@ -26,7 +26,7 @@ export default function DashboardLayout({
+ }: {
+     children: React.ReactNode;
+ }) {
+-    const { user, userProfile, loading } = useAuth();
++    const { user, userProfile, loading, logout } = useAuth();
+     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+     const pathname = usePathname();
+     const router = useRouter();
+@@ -135,6 +135,13 @@ export default function DashboardLayout({
+                         <Settings className="w-5 h-5" />
+                         <span>Settings</span>
+                     </Link>
++                    <button
++                        onClick={() => logout()}
++                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-red-400 hover:bg-red-400/5 transition-colors w-full text-left"
++                    >
++                        <LogOut className="w-5 h-5" />
++                        <span>Log Out</span>
++                    </button>
+                     <div className="px-3 py-3 rounded-2xl bg-zinc-900 border border-white/5 mt-2">
+                         <div className="flex items-center gap-3 mb-3">
+                             {user?.photoURL ? (
+@@ -184,6 +191,13 @@ export default function DashboardLayout({
+                             ))}
+                             <hr className="border-white/5 my-4" />
+                             <NavItem item={{ name: "Settings", href: "/dashboard/settings", icon: Settings }} />
++                            <button
++                                onClick={() => logout()}
++                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-red-400 transition-colors w-full text-left"
++                            >
++                                <LogOut className="w-5 h-5" />
++                                <span>Log Out</span>
++                            </button>
+                         </div>
+                     </div>
+                 )}
+diff --git a/app/login/page.tsx b/app/login/page.tsx
+index b2e6fe8..cc7b47b 100644
+--- a/app/login/page.tsx
++++ b/app/login/page.tsx
+@@ -21,62 +21,6 @@ export default function LoginPage() {
+         setLoading(true);
+         try {
+             const userCredential = await signInWithEmailAndPassword(auth, email, password);
+-            // Waitlist Check
+-            const { collection, query, where, getDocs } = await import("firebase/firestore");
+-            // Import the configured db instance (which uses jobpeel2)
+-            const { db } = await import("@/lib/firebase");
+-            const waitlistRef = collection(db, "jobpeel_waitlist");
+-
+-            // A. Check Direct Email
+-            const qEmail = query(waitlistRef, where("work_email", "==", userCredential.user.email));
+-            const snapEmail = await getDocs(qEmail);
+-
+-            let isApproved = false;
+-            snapEmail.forEach((doc) => {
+-                if (doc.data().status === "approved") isApproved = true;
+-            });
+-
+-            // B. Check Domain (if not already approved)
+-            if (!isApproved && userCredential.user.email) {
+-                const domain = userCredential.user.email.split('@')[1];
+-                if (domain) {
+-                    const qDomain = query(waitlistRef, where("domains", "array-contains", domain));
+-                    const snapDomain = await getDocs(qDomain);
+-                    snapDomain.forEach((doc) => {
+-                        if (doc.data().status === "approved") isApproved = true;
+-                    });
+-                }
+-            }
+-
+-            // C. Check Admin Emails (if not already approved)
+-            if (!isApproved && userCredential.user.email) {
+-                const qAdmin = query(waitlistRef, where("admin_emails", "array-contains", userCredential.user.email));
+-                const snapAdmin = await getDocs(qAdmin);
+-                snapAdmin.forEach((doc) => {
+-                    if (doc.data().status === "approved") isApproved = true;
+-                });
+-            }
+-
+-            if (!isApproved) {
+-                const { signOut } = await import("firebase/auth");
+-                await signOut(auth);
+-                const { joinWaitlist } = await import("@/lib/waitlistService");
+-
+-                toast("JobPeel is limited to waitlisted users.", {
+-                    description: "Would you like to be added to the waitlist?",
+-                    duration: Infinity,
+-                    action: {
+-                        label: "Join Waitlist",
+-                        onClick: () => joinWaitlist(userCredential.user.email || "", userCredential.user.displayName || "")
+-                    },
+-                    cancel: {
+-                        label: "No Thanks",
+-                        onClick: () => { }
+-                    }
+-                });
+-                return;
+-            }
+-
+             toast.success("Welcome back!");
+             router.push("/dashboard");
+         } catch (error: any) {
+diff --git a/app/page.tsx b/app/page.tsx
+index 005e073..3293d04 100644
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -1,7 +1,6 @@
+ "use client";
+ 
+ import React, { useState, useEffect, useRef } from 'react';
+-import { WaitlistForm } from '@/components/WaitlistForm';
+ import { motion, useInView } from 'framer-motion';
+ import {
+   Target,
+@@ -21,13 +20,18 @@ import {
+   ChevronRight,
+   GraduationCap,
+   Upload,
+-  MousePointerClick,
+   Star,
+-  Github,
+   Twitter,
+   Linkedin,
+   Mail,
++  User,
++  Building2,
++  BarChart3,
++  MessageSquare,
++  LogOut,
++  LayoutDashboard,
+ } from 'lucide-react';
++import { useAuth } from '@/contexts/AuthContext';
+ 
+ /* ΓöÇΓöÇΓöÇ Data ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+ 
+@@ -62,33 +66,33 @@ const howItWorks = [
+ const features = [
+   {
+     icon: <Target className="w-6 h-6" />,
+-    title: 'Applicant Clarity',
+-    desc: 'Deep profiling that helps students understand their unique value positioning in the market.',
++    title: 'Match Scoring',
++    desc: 'Know your fit before you apply. JobPeel scores your resume against the role and highlights exactly what to improve.',
+   },
+   {
+     icon: <FileText className="w-6 h-6" />,
+-    title: 'Application Excellence',
+-    desc: 'Smart cover letters and tailored resumes that are strategic representations of the candidate.',
++    title: 'Tailored Cover Letters',
++    desc: 'AI-crafted cover letters that sound like you, not a template. Specific to the role, company, and your background.',
+   },
+   {
+-    icon: <Users className="w-6 h-6" />,
++    icon: <MessageSquare className="w-6 h-6" />,
+     title: 'Interview Prep',
+-    desc: 'Real practice with AI-generated questions specific to the role and their background.',
++    desc: 'Practice with AI-generated questions specific to the role. Walk in prepared, not panicked.',
+   },
+   {
+     icon: <TrendingUp className="w-6 h-6" />,
+-    title: 'Placement Momentum',
+-    desc: 'Track applications and outcomes. Give your program visibility into student success.',
++    title: 'Application Tracker',
++    desc: 'Track every application in one place. Know what\'s active, what\'s stale, and where to focus next.',
+   },
+   {
+     icon: <Zap className="w-6 h-6" />,
+-    title: 'Talent Signals',
+-    desc: 'Creating verified indicators of skill and readiness that employers can trust.',
++    title: 'Resume Optimizer',
++    desc: 'Get specific, actionable suggestions to tighten your resume for each role ΓÇö not generic advice.',
+   },
+   {
+-    icon: <Briefcase className="w-6 h-6" />,
+-    title: 'Career Companion',
+-    desc: 'A persistent system that grows with your alumni from their first job to executive roles.',
++    icon: <BarChart3 className="w-6 h-6" />,
++    title: 'Program Analytics',
++    desc: 'For career centers: real-time placement dashboards, bulk student access, and program-wide insights.',
+   },
+ ];
+ 
+@@ -98,23 +102,26 @@ const testimonials = [
+     role: 'CS Senior, Howard University',
+     quote: 'I went from zero callbacks to three interviews in two weeks. The cover letters actually sound like me.',
+     rating: 5,
++    type: 'individual',
+   },
+   {
+-    name: 'Priya S.',
+-    role: 'MBA Candidate, UT Austin',
+-    quote: 'Our career center adopted JobPeel and placement rates jumped 18% in one semester.',
++    name: 'Dr. Lisa Park',
++    role: 'Career Director, UT Austin MBA',
++    quote: 'We replaced three manual review sessions per week with JobPeel. Placement rates jumped 18% in one semester.',
+     rating: 5,
++    type: 'program',
+   },
+   {
+     name: 'David K.',
+     role: 'Bootcamp Graduate',
+-    quote: 'The match scoring showed me which roles I was actually qualified for. Landed at a FAANG.',
++    quote: 'The match scoring showed me which roles I was actually qualified for. I stopped shotgunning and landed at a FAANG.',
+     rating: 5,
++    type: 'individual',
+   },
+ ];
+ 
+ const stats = [
+-  { value: '10,000+', label: 'Students Served' },
++  { value: '10,000+', label: 'Users' },
+   { value: '94%', label: 'Avg Match Score' },
+   { value: '3x', label: 'More Interviews' },
+   { value: '200+', label: 'Partner Programs' },
+@@ -131,11 +138,6 @@ const fadeUp: any = {
+   }),
+ };
+ 
+-const fadeIn: any = {
+-  hidden: { opacity: 0 },
+-  visible: { opacity: 1, transition: { duration: 0.8 } },
+-};
+-
+ const scaleIn: any = {
+   hidden: { opacity: 0, scale: 0.9 },
+   visible: (i: number = 0) => ({
+@@ -165,6 +167,7 @@ const AnimatedSection = ({ children, className = '' }: { children: React.ReactNo
+ /* ΓöÇΓöÇΓöÇ Page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+ 
+ const JobPeelLanding = () => {
++  const { user, logout } = useAuth();
+   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+   const [scrolled, setScrolled] = useState(false);
+ 
+@@ -200,29 +203,51 @@ const JobPeelLanding = () => {
+ 
+           {/* Desktop Links */}
+           <div className="hidden md:flex items-center gap-8">
+-            {['Platform', 'For Schools', 'Vision'].map((link) => (
++            {[
++              { label: 'How It Works', href: '#how-it-works' },
++              { label: 'For Individuals', href: '#for-individuals' },
++              { label: 'For Programs', href: '#for-schools' },
++            ].map((link) => (
+               <a
+-                key={link}
+-                href={`#${link.toLowerCase().replace(/\s/g, '-')}`}
++                key={link.label}
++                href={link.href}
+                 className="text-sm font-medium text-zinc-400 hover:text-orange-400 transition-colors duration-300"
+               >
+-                {link}
++                {link.label}
+               </a>
+             ))}
+           </div>
+ 
+           {/* Desktop CTA */}
+           <div className="hidden md:flex items-center gap-4">
+-            <a href="/login" className="text-sm font-medium text-zinc-300 hover:text-white transition-colors">
+-              Log in
+-            </a>
+-            <a
+-              href="/signup"
+-              className="relative group bg-orange-600 hover:bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 shadow-lg shadow-orange-600/20 hover:shadow-orange-500/30"
+-            >
+-              Get Started
+-              <div className="absolute inset-0 rounded-xl bg-orange-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
+-            </a>
++            {user ? (
++              <>
++                <a href="/dashboard" className="text-sm font-medium text-zinc-300 hover:text-white transition-colors flex items-center gap-2">
++                  <LayoutDashboard className="w-4 h-4" />
++                  Dashboard
++                </a>
++                <button
++                  onClick={() => logout()}
++                  className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 border border-white/5"
++                >
++                  <LogOut className="w-4 h-4" />
++                  Log out
++                </button>
++              </>
++            ) : (
++              <>
++                <a href="/login" className="text-sm font-medium text-zinc-300 hover:text-white transition-colors">
++                  Log in
++                </a>
++                <a
++                  href="/signup"
++                  className="relative group bg-orange-600 hover:bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 shadow-lg shadow-orange-600/20 hover:shadow-orange-500/30"
++                >
++                  Get Started Free
++                  <div className="absolute inset-0 rounded-xl bg-orange-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
++                </a>
++              </>
++            )}
+           </div>
+ 
+           {/* Mobile Toggle */}
+@@ -241,21 +266,43 @@ const JobPeelLanding = () => {
+             animate={{ opacity: 1, y: 0 }}
+             className="absolute top-full left-0 right-0 bg-zinc-950/95 backdrop-blur-xl border-b border-white/5 p-6 flex flex-col gap-4 md:hidden"
+           >
+-            {['Platform', 'For Schools', 'Vision'].map((link) => (
++            {[
++              { label: 'How It Works', href: '#how-it-works' },
++              { label: 'For Individuals', href: '#for-individuals' },
++              { label: 'For Programs', href: '#for-schools' },
++            ].map((link) => (
+               <a
+-                key={link}
+-                href={`#${link.toLowerCase().replace(/\s/g, '-')}`}
++                key={link.label}
++                href={link.href}
+                 className="text-lg font-medium text-zinc-100 hover:text-orange-400 transition-colors"
+                 onClick={() => setMobileMenuOpen(false)}
+               >
+-                {link}
++                {link.label}
+               </a>
+             ))}
+             <hr className="border-zinc-800" />
+-            <a href="/login" className="text-lg font-medium text-zinc-100">Log in</a>
+-            <a href="/signup" className="bg-orange-600 text-white w-full py-3 rounded-xl font-semibold text-center">
+-              Get Started
+-            </a>
++            {user ? (
++              <>
++                <a href="/dashboard" className="text-lg font-medium text-zinc-100 flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
++                  <LayoutDashboard className="w-5 h-5" />
++                  Dashboard
++                </a>
++                <button
++                  onClick={() => { logout(); setMobileMenuOpen(false); }}
++                  className="bg-zinc-900 border border-white/5 text-white w-full py-3 rounded-xl font-semibold text-center flex items-center justify-center gap-2"
++                >
++                  <LogOut className="w-5 h-5" />
++                  Log out
++                </button>
++              </>
++            ) : (
++              <>
++                <a href="/login" className="text-lg font-medium text-zinc-100" onClick={() => setMobileMenuOpen(false)}>Log in</a>
++                <a href="/signup" className="bg-orange-600 text-white w-full py-3 rounded-xl font-semibold text-center" onClick={() => setMobileMenuOpen(false)}>
++                  Get Started Free
++                </a>
++              </>
++            )}
+           </motion.div>
+         )}
+       </nav>
+@@ -264,24 +311,17 @@ const JobPeelLanding = () => {
+ 
+         {/* ΓöÇΓöÇΓöÇ Hero Section ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+         <section className="pt-36 pb-20 lg:pt-52 lg:pb-36 relative overflow-hidden">
+-          {/* Background Effects */}
+           <div className="absolute top-0 right-0 w-1/2 h-full -z-10">
+             <div className="absolute top-20 right-20 w-[500px] h-[500px] rounded-full bg-orange-600/8 blur-[150px] animate-glow-pulse" />
+             <div className="absolute bottom-20 right-40 w-[300px] h-[300px] rounded-full bg-orange-500/5 blur-[100px] animate-glow-pulse" style={{ animationDelay: '2s' }} />
+           </div>
+           <div className="absolute top-40 left-0 w-[400px] h-[400px] rounded-full bg-zinc-900/60 blur-[120px] -z-10" />
+-
+-          {/* Grid pattern overlay */}
+           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] -z-10" />
+ 
+           <div className="max-w-7xl mx-auto px-6 w-full">
+             <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+               {/* Left: Copy */}
+-              <motion.div
+-                initial="hidden"
+-                animate="visible"
+-                className="max-w-xl"
+-              >
++              <motion.div initial="hidden" animate="visible" className="max-w-xl">
+                 <motion.div
+                   variants={fadeUp}
+                   custom={0}
+@@ -291,7 +331,7 @@ const JobPeelLanding = () => {
+                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                     <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+                   </span>
+-                  Now Onboarding Career Programs
++                  Now open to everyone ΓÇö individuals &amp; programs
+                 </motion.div>
+ 
+                 <motion.h1
+@@ -299,9 +339,9 @@ const JobPeelLanding = () => {
+                   custom={1}
+                   className="text-5xl lg:text-[3.75rem] xl:text-7xl font-bold tracking-tight leading-[1.08] mb-6 text-white"
+                 >
+-                  Help more students land interviews with{' '}
++                  Land more interviews with{' '}
+                   <span className="gradient-text-orange">
+-                    tailored applications on autopilot
++                    applications built for the role
+                   </span>
+                   .
+                 </motion.h1>
+@@ -311,22 +351,23 @@ const JobPeelLanding = () => {
+                   custom={2}
+                   className="text-lg lg:text-xl text-zinc-400 mb-10 leading-relaxed"
+                 >
+-                  JobPeel turns a student's resume and a job link into a focused cover letter that matches the role, plus suggestions to tighten their resume. Career staff stop rewriting documents from scratch and instead guide students using drafts already aligned with each posting.
++                  JobPeel turns your resume and any job link into a tailored cover letter, match score, and resume suggestions ΓÇö in seconds. For job seekers and career programs alike.
+                 </motion.p>
+ 
+                 <motion.div variants={fadeUp} custom={3} className="flex flex-col sm:flex-row gap-4">
+                   <a
+-                    href="#waitlist"
++                    href="/signup"
+                     className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-8 py-4 rounded-xl text-base font-semibold transition-all duration-300 shadow-xl shadow-orange-600/20 hover:shadow-orange-500/30 group"
+                   >
+-                    Apply for the Pilot
++                    Start for Free
+                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                   </a>
+                   <a
+-                    href="#platform"
+-                    className="flex items-center justify-center gap-2 border border-zinc-800 hover:border-zinc-700 text-white px-8 py-4 rounded-xl text-base font-semibold transition-all duration-300 hover:bg-zinc-900/50"
++                    href="#for-schools"
++                    className="flex items-center justify-center gap-2 border border-zinc-700 hover:border-orange-500/40 text-zinc-300 hover:text-white px-8 py-4 rounded-xl text-base font-semibold transition-all duration-300 hover:bg-zinc-900/50"
+                   >
+-                    See How It Works
++                    <GraduationCap className="w-4 h-4" />
++                    For Career Programs
+                   </a>
+                 </motion.div>
+ 
+@@ -343,12 +384,12 @@ const JobPeelLanding = () => {
+                         key={i}
+                         className={`w-9 h-9 rounded-full border-2 border-zinc-950 ${bg} flex items-center justify-center text-[10px] font-bold text-white`}
+                       >
+-                        {['MJ', 'PS', 'DK', 'AL'][i]}
++                        {['MJ', 'LP', 'DK', 'AL'][i]}
+                       </div>
+                     ))}
+                   </div>
+                   <p className="text-sm text-zinc-500">
+-                    Trusted by <span className="text-zinc-300 font-medium">10,000+</span> students
++                    Trusted by <span className="text-zinc-300 font-medium">10,000+</span> users &amp; 200+ programs
+                   </p>
+                 </motion.div>
+               </motion.div>
+@@ -363,7 +404,6 @@ const JobPeelLanding = () => {
+                 <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/10 to-orange-600/5 rounded-3xl blur-3xl animate-glow-pulse" />
+                 <div className="relative glass-card rounded-2xl p-2 shadow-2xl glow-orange hover:rotate-0 transition-transform duration-700 ease-out">
+                   <div className="bg-zinc-950 rounded-xl overflow-hidden border border-white/5 aspect-[4/3] flex flex-col relative">
+-                    {/* Browser Bar */}
+                     <div className="bg-zinc-900/60 px-4 py-3 flex items-center gap-2 border-b border-white/5">
+                       <div className="flex gap-1.5">
+                         <div className="w-3 h-3 rounded-full bg-red-500/30 border border-red-500/40" />
+@@ -372,11 +412,10 @@ const JobPeelLanding = () => {
+                       </div>
+                       <div className="ml-4 bg-zinc-800/60 px-3 py-1 rounded-md flex items-center gap-2 border border-white/5">
+                         <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+-                        <span className="text-[10px] font-mono text-zinc-400">jobpeel.app/workspace</span>
++                        <span className="text-[10px] font-mono text-zinc-400">jobpeel.app/dashboard</span>
+                       </div>
+                     </div>
+ 
+-                    {/* Content */}
+                     <div className="p-6 flex-grow flex flex-col gap-5">
+                       <div className="flex justify-between items-start">
+                         <div>
+@@ -416,15 +455,15 @@ const JobPeelLanding = () => {
+                         </div>
+                         <div className="flex items-center gap-2 text-xs text-zinc-400">
+                           <Check className="w-3 h-3 text-green-500" />
+-                          <span>Extracted keywords: "Systems", "React"</span>
++                          <span>Extracted keywords: &quot;Systems&quot;, &quot;React&quot;</span>
+                         </div>
+                         <div className="flex items-center gap-2 text-xs text-orange-400 bg-orange-500/10 p-2 rounded border border-orange-500/20">
+                           <Sparkles className="w-3 h-3 animate-pulse" />
+                           <span>Drafting cover letter...</span>
+                         </div>
+                         <div className="mt-1 text-[10px] text-zinc-500 font-mono bg-black/30 p-2 rounded leading-relaxed opacity-70">
+-                          "I'm excited to apply for the Product Designer role. My experience building{' '}
+-                          <span className="text-orange-400 bg-orange-500/10">design systems</span>..."
++                          &ldquo;I&#39;m excited to apply for the Product Designer role. My experience building{' '}
++                          <span className="text-orange-400 bg-orange-500/10">design systems</span>...&rdquo;
+                         </div>
+                       </div>
+                     </div>
+@@ -456,15 +495,8 @@ const JobPeelLanding = () => {
+             <div className="max-w-7xl mx-auto px-6">
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                 {stats.map((stat, i) => (
+-                  <motion.div
+-                    key={stat.label}
+-                    variants={fadeUp}
+-                    custom={i}
+-                    className="text-center"
+-                  >
+-                    <div className="text-3xl md:text-4xl font-bold gradient-text-orange mb-1">
+-                      {stat.value}
+-                    </div>
++                  <motion.div key={stat.label} variants={fadeUp} custom={i} className="text-center">
++                    <div className="text-3xl md:text-4xl font-bold gradient-text-orange mb-1">{stat.value}</div>
+                     <div className="text-sm text-zinc-500">{stat.label}</div>
+                   </motion.div>
+                 ))}
+@@ -477,14 +509,12 @@ const JobPeelLanding = () => {
+         <section className="py-14 bg-zinc-950/50 overflow-hidden">
+           <div className="max-w-7xl mx-auto px-6">
+             <p className="text-center text-xs font-bold text-zinc-600 mb-10 uppercase tracking-[0.2em]">
+-              Helping students land roles at
++              Helping users land roles at
+             </p>
+           </div>
+           <div className="relative">
+-            {/* Gradient Edges */}
+             <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-zinc-950 to-transparent z-10" />
+             <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-zinc-950 to-transparent z-10" />
+-            {/* Marquee */}
+             <div className="flex animate-marquee whitespace-nowrap">
+               {[...NewBrandLogos, ...NewBrandLogos, ...NewBrandLogos, ...NewBrandLogos].map((logo, i) => (
+                 <div key={`${logo.name}-${i}`} className="mx-12 md:mx-20 flex-shrink-0 flex items-center">
+@@ -499,9 +529,113 @@ const JobPeelLanding = () => {
+           </div>
+         </section>
+ 
++        {/* ΓöÇΓöÇΓöÇ Who Is It For? ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
++        <AnimatedSection>
++          <section className="py-28 bg-zinc-950 relative border-t border-white/5" id="for-individuals">
++            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-orange-950/10 via-transparent to-transparent -z-10" />
++            <div className="max-w-7xl mx-auto px-6">
++              <motion.div variants={fadeUp} custom={0} className="text-center max-w-3xl mx-auto mb-16">
++                <span className="inline-block text-xs font-bold text-orange-500 uppercase tracking-[0.2em] mb-4">Built for everyone</span>
++                <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
++                  Two audiences. <span className="gradient-text-orange">One platform.</span>
++                </h2>
++                <p className="text-lg text-zinc-400 leading-relaxed">
++                  Whether you&apos;re a student hunting for your first role or a career director scaling a program ΓÇö JobPeel works for you.
++                </p>
++              </motion.div>
++
++              <div className="grid md:grid-cols-2 gap-6 lg:gap-8">
++                {/* For Individuals */}
++                <motion.div
++                  variants={fadeUp}
++                  custom={1}
++                  className="relative p-10 rounded-3xl bg-zinc-900/60 border border-white/[0.08] hover:border-orange-500/20 transition-all duration-500 group overflow-hidden"
++                >
++                  <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/5 rounded-full blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
++                  <div className="relative z-10">
++                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-sm font-bold mb-6">
++                      <User className="w-4 h-4" />
++                      For Job Seekers
++                    </div>
++                    <h3 className="text-3xl font-bold text-white mb-4 leading-tight">You, applying smarter.</h3>
++                    <p className="text-zinc-400 mb-8 leading-relaxed">
++                      Stop sending the same resume to every job. JobPeel helps you tailor every application in seconds, understand your fit, and walk into every interview prepared.
++                    </p>
++                    <ul className="space-y-3 mb-10">
++                      {[
++                        'AI-tailored cover letters that sound like you',
++                        'Match scoring vs. any job posting',
++                        'Resume optimization suggestions per role',
++                        'Interview prep with role-specific questions',
++                        'Application tracker to stay organized',
++                      ].map((item, i) => (
++                        <li key={i} className="flex items-start gap-3 text-zinc-300">
++                          <div className="p-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 mt-0.5 shrink-0">
++                            <Check className="w-3.5 h-3.5 text-orange-500" />
++                          </div>
++                          <span className="text-sm">{item}</span>
++                        </li>
++                      ))}
++                    </ul>
++                    <a
++                      href="/signup"
++                      className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg shadow-orange-600/20 group/btn"
++                    >
++                      Start for Free
++                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
++                    </a>
++                  </div>
++                </motion.div>
++
++                {/* For Programs */}
++                <motion.div
++                  variants={fadeUp}
++                  custom={2}
++                  className="relative p-10 rounded-3xl bg-zinc-900/60 border border-white/[0.08] hover:border-indigo-500/20 transition-all duration-500 group overflow-hidden"
++                >
++                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 rounded-full blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
++                  <div className="relative z-10">
++                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-bold mb-6">
++                      <Building2 className="w-4 h-4" />
++                      For Career Programs
++                    </div>
++                    <h3 className="text-3xl font-bold text-white mb-4 leading-tight">Your students, scaling faster.</h3>
++                    <p className="text-zinc-400 mb-8 leading-relaxed">
++                      Give every student access to a personal career coach without burning out your advisors. Track outcomes, surface insights, and prove program ROI ΓÇö all in one dashboard.
++                    </p>
++                    <ul className="space-y-3 mb-10">
++                      {[
++                        'Bulk student access under one account',
++                        'Admin dashboard with placement analytics',
++                        'Automated cover letter & resume tooling',
++                        'Reduce manual advisor workload by 60%',
++                        'Exportable reports for stakeholders',
++                      ].map((item, i) => (
++                        <li key={i} className="flex items-start gap-3 text-zinc-300">
++                          <div className="p-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 mt-0.5 shrink-0">
++                            <Check className="w-3.5 h-3.5 text-indigo-400" />
++                          </div>
++                          <span className="text-sm">{item}</span>
++                        </li>
++                      ))}
++                    </ul>
++                    <a
++                      href="#for-schools"
++                      className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 group/btn"
++                    >
++                      See Program Features
++                      <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
++                    </a>
++                  </div>
++                </motion.div>
++              </div>
++            </div>
++          </section>
++        </AnimatedSection>
++
+         {/* ΓöÇΓöÇΓöÇ How It Works ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+         <AnimatedSection>
+-          <section className="py-28 bg-zinc-950 relative" id="platform">
++          <section className="py-28 bg-zinc-950 relative" id="how-it-works">
+             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-950/20 via-transparent to-transparent -z-10" />
+             <div className="max-w-7xl mx-auto px-6">
+               <motion.div variants={fadeUp} custom={0} className="text-center max-w-3xl mx-auto mb-20">
+@@ -510,25 +644,16 @@ const JobPeelLanding = () => {
+                   Three steps to a <span className="gradient-text-orange">stronger application</span>.
+                 </h2>
+                 <p className="text-lg text-zinc-400 leading-relaxed">
+-                  No more blank-page anxiety. Just paste, upload, and let JobPeel handle the heavy lifting.
++                  No more blank-page anxiety. Paste, upload, and let JobPeel handle the heavy lifting.
+                 </p>
+               </motion.div>
+ 
+               <div className="grid md:grid-cols-3 gap-8 relative">
+-                {/* Connecting Line (desktop) */}
+                 <div className="hidden md:block absolute top-8 left-[16.67%] right-[16.67%] h-px bg-gradient-to-r from-orange-500/30 via-orange-500/10 to-orange-500/30" />
+-
+                 {howItWorks.map((item, i) => (
+-                  <motion.div
+-                    key={item.step}
+-                    variants={scaleIn}
+-                    custom={i}
+-                    className="relative text-center group"
+-                  >
++                  <motion.div key={item.step} variants={scaleIn} custom={i} className="relative text-center group">
+                     <div className="relative inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-white/5 mb-6 group-hover:border-orange-500/30 transition-all duration-500 group-hover:shadow-lg group-hover:shadow-orange-500/10">
+-                      <div className="text-orange-500 group-hover:scale-110 transition-transform duration-300">
+-                        {item.icon}
+-                      </div>
++                      <div className="text-orange-500 group-hover:scale-110 transition-transform duration-300">{item.icon}</div>
+                       <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-orange-600 text-white text-[10px] font-bold flex items-center justify-center shadow-lg">
+                         {item.step}
+                       </div>
+@@ -542,94 +667,17 @@ const JobPeelLanding = () => {
+           </section>
+         </AnimatedSection>
+ 
+-        {/* ΓöÇΓöÇΓöÇ Problem / Solution ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+-        <AnimatedSection>
+-          <section className="py-28 bg-zinc-950 relative">
+-            <div className="max-w-7xl mx-auto px-6">
+-              <motion.div variants={fadeUp} custom={0} className="text-center max-w-3xl mx-auto mb-20">
+-                <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">
+-                  The hiring process is{' '}
+-                  <span className="line-through decoration-orange-600 decoration-4 text-zinc-500">broken</span>.
+-                </h2>
+-                <p className="text-lg text-zinc-400 leading-relaxed">
+-                  Students send generic applications into the void. Career centers are overwhelmed reviewing endless drafts. The result is wasted effort and missed opportunities.
+-                </p>
+-              </motion.div>
+-
+-              <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
+-                <motion.div
+-                  variants={fadeUp}
+-                  custom={1}
+-                  className="p-10 rounded-3xl border border-white/5 bg-zinc-900/30 backdrop-blur-sm"
+-                >
+-                  <h3 className="text-2xl font-bold mb-8 flex items-center gap-3 text-white">
+-                    <span className="w-1.5 h-8 bg-zinc-700 rounded-full" />
+-                    The Old Way
+-                  </h3>
+-                  <ul className="space-y-5">
+-                    {[
+-                      'Guessing what ATS systems want',
+-                      'Blindly submitting generic resumes',
+-                      'Career staff rewriting from scratch',
+-                      'Students ghosted by recruiters',
+-                      'Low interview conversion rates',
+-                    ].map((item, i) => (
+-                      <li key={i} className="flex items-center gap-4 text-zinc-500 group">
+-                        <div className="p-1 rounded-full bg-zinc-800/50 group-hover:bg-red-900/20 transition-colors">
+-                          <X className="w-5 h-5 shrink-0 text-zinc-600 group-hover:text-red-500 transition-colors" />
+-                        </div>
+-                        {item}
+-                      </li>
+-                    ))}
+-                  </ul>
+-                </motion.div>
+-
+-                <motion.div
+-                  variants={fadeUp}
+-                  custom={2}
+-                  className="p-10 rounded-3xl bg-zinc-900 text-white shadow-2xl relative overflow-hidden group border border-white/10 hover:border-orange-500/30 transition-colors duration-500"
+-                >
+-                  <div className="absolute top-0 right-0 w-80 h-80 bg-orange-600/15 rounded-full blur-[100px] opacity-30 group-hover:opacity-50 transition-opacity" />
+-                  <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+-                    <span className="w-1.5 h-8 bg-orange-500 rounded-full shadow-[0_0_12px_rgba(246,152,90,0.8)]" />
+-                    The JobPeel Way
+-                  </h3>
+-                  <ul className="space-y-5">
+-                    {[
+-                      'Clear understanding of candidate positioning',
+-                      'Tailored applications for every role',
+-                      'AI that learns the student\'s voice',
+-                      'Staff act as strategic guides, not editors',
+-                      'Prepared, articulate, and competitive candidates',
+-                    ].map((item, i) => (
+-                      <li key={i} className="flex items-center gap-4 text-zinc-200">
+-                        <div className="p-1 rounded-full bg-orange-500/10 border border-orange-500/20">
+-                          <CheckCircle2 className="w-5 h-5 shrink-0 text-orange-500" />
+-                        </div>
+-                        {item}
+-                      </li>
+-                    ))}
+-                  </ul>
+-                </motion.div>
+-              </div>
+-            </div>
+-          </section>
+-        </AnimatedSection>
+-
+         {/* ΓöÇΓöÇΓöÇ Features Grid ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+         <AnimatedSection>
+           <section className="py-28 bg-zinc-900/20 border-t border-white/5" id="features">
+             <div className="max-w-7xl mx-auto px-6">
+               <motion.div variants={fadeUp} custom={0} className="mb-20">
+                 <span className="inline-block text-xs font-bold text-orange-500 uppercase tracking-[0.2em] mb-4">Platform</span>
+-                <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">
+-                  A complete career operating system.
+-                </h2>
++                <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">Everything you need to get hired.</h2>
+                 <p className="text-xl text-zinc-400 max-w-2xl">
+-                  Not just a document tool. A system for clarity, leverage, and momentum for your program.
++                  From your first application to placement tracking, JobPeel is the complete career operating system.
+                 </p>
+               </motion.div>
+-
+               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {features.map((card, i) => (
+                   <motion.div
+@@ -639,9 +687,7 @@ const JobPeelLanding = () => {
+                     className="glass-card glass-card-hover p-8 rounded-2xl transition-all duration-500 group cursor-default hover:-translate-y-1"
+                   >
+                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-zinc-800/80 border border-white/5 group-hover:border-orange-500/20 group-hover:bg-zinc-800 transition-all duration-500">
+-                      <div className="text-orange-500 group-hover:scale-110 transition-transform duration-300">
+-                        {card.icon}
+-                      </div>
++                      <div className="text-orange-500 group-hover:scale-110 transition-transform duration-300">{card.icon}</div>
+                     </div>
+                     <h3 className="text-xl font-bold text-white mb-3">{card.title}</h3>
+                     <p className="leading-relaxed text-zinc-400 group-hover:text-zinc-300 transition-colors">{card.desc}</p>
+@@ -656,27 +702,25 @@ const JobPeelLanding = () => {
+         <AnimatedSection>
+           <section className="py-28 bg-zinc-950 relative overflow-hidden border-t border-white/5" id="for-schools">
+             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] opacity-30" />
+-
+             <div className="max-w-7xl mx-auto px-6 relative z-10">
+               <div className="grid lg:grid-cols-2 gap-16 items-center">
+                 <motion.div variants={fadeUp} custom={0}>
+-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/5 border border-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider mb-6">
++                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/5 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-6">
+                     <GraduationCap className="w-4 h-4" />
+-                    For Schools & Bootcamps
++                    For Schools &amp; Bootcamps
+                   </div>
+                   <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
+                     The Career Center <span className="gradient-text-orange">in a Box</span>.
+                   </h2>
+                   <p className="text-zinc-400 text-lg mb-8 leading-relaxed">
+-                    Scale personalized guidance to thousands of students at once. JobPeel assists advisors with automation, dashboards, and placement insights without sacrificing quality.
++                    Scale personalized guidance to thousands of students at once. JobPeel gives advisors automation, dashboards, and placement insights ΓÇö without sacrificing quality.
+                   </p>
+-
+                   <ul className="space-y-4 mb-10">
+                     {[
+-                      'Admin dashboards & student monitoring',
+-                      'Automated placement tracking',
+-                      'Reduce advisor manual workload',
+-                      'Improve placement outcomes',
++                      'Admin dashboards & real-time student monitoring',
++                      'Automated placement tracking & outcome reporting',
++                      'Reduce advisor manual workload by 60%',
++                      'Exportable CSV & PDF reports for stakeholders',
+                     ].map((item, i) => (
+                       <li key={i} className="flex items-center gap-3">
+                         <div className="p-1 rounded-full bg-orange-500/10 border border-orange-500/20">
+@@ -686,19 +730,27 @@ const JobPeelLanding = () => {
+                       </li>
+                     ))}
+                   </ul>
+-
+-                  <a
+-                    href="#waitlist"
+-                    className="inline-flex items-center gap-2 bg-white text-zinc-900 hover:bg-zinc-100 px-8 py-3.5 rounded-xl font-bold transition-all duration-300 shadow-lg group"
+-                  >
+-                    Partner With Us
+-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+-                  </a>
++                  <div className="flex flex-col sm:flex-row gap-4">
++                    <a
++                      href="/signup"
++                      className="inline-flex items-center justify-center gap-2 bg-white text-zinc-900 hover:bg-zinc-100 px-8 py-3.5 rounded-xl font-bold transition-all duration-300 shadow-lg group"
++                    >
++                      Partner With Us
++                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
++                    </a>
++                    <a
++                      href="mailto:hello@jobpeel.app"
++                      className="inline-flex items-center justify-center gap-2 border border-zinc-700 hover:border-zinc-500 text-zinc-300 px-8 py-3.5 rounded-xl font-medium transition-all duration-300"
++                    >
++                      <Mail className="w-4 h-4" />
++                      Contact Sales
++                    </a>
++                  </div>
+                 </motion.div>
+ 
+                 <motion.div variants={fadeUp} custom={2} className="relative">
+-                  <div className="absolute -inset-4 bg-gradient-to-br from-orange-500/10 to-transparent rounded-3xl blur-2xl" />
+-                  <div className="relative glass-card rounded-2xl p-6 glow-orange">
++                  <div className="absolute -inset-4 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-3xl blur-2xl" />
++                  <div className="relative glass-card rounded-2xl p-6" style={{ boxShadow: '0 0 40px rgba(99,102,241,0.15), 0 0 80px rgba(99,102,241,0.05)' }}>
+                     <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
+                       <div className="flex gap-1.5">
+                         <div className="w-3 h-3 rounded-full bg-zinc-700" />
+@@ -707,34 +759,35 @@ const JobPeelLanding = () => {
+                       </div>
+                       <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">Admin Dashboard</div>
+                     </div>
+-
+                     <div className="space-y-5">
+                       <div>
+                         <div className="flex items-center justify-between mb-2">
+                           <h4 className="text-sm text-zinc-400 font-medium">Placement Rate</h4>
+-                          <span className="text-green-400 text-sm font-bold">+18% vs LY</span>
++                          <span className="text-green-400 text-sm font-bold">+18% vs Last Year</span>
+                         </div>
+                         <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+-                          <div className="h-full w-[82%] bg-gradient-to-r from-orange-600 to-orange-400 rounded-full" />
++                          <div className="h-full w-[82%] bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full" />
+                         </div>
+                       </div>
+-
+-                      <div className="grid grid-cols-2 gap-4">
+-                        <div className="bg-zinc-800/50 p-4 rounded-xl border border-white/5">
+-                          <div className="text-3xl font-bold mb-1 text-white">842</div>
+-                          <div className="text-xs text-zinc-500">Active Students</div>
++                      <div className="grid grid-cols-3 gap-3">
++                        <div className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
++                          <div className="text-2xl font-bold mb-0.5 text-white">842</div>
++                          <div className="text-[10px] text-zinc-500">Students</div>
++                        </div>
++                        <div className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
++                          <div className="text-2xl font-bold mb-0.5 text-indigo-400">156</div>
++                          <div className="text-[10px] text-zinc-500">Interviews</div>
+                         </div>
+-                        <div className="bg-zinc-800/50 p-4 rounded-xl border border-white/5">
+-                          <div className="text-3xl font-bold mb-1 text-white">156</div>
+-                          <div className="text-xs text-zinc-500">Interviews This Week</div>
++                        <div className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
++                          <div className="text-2xl font-bold mb-0.5 text-green-400">34</div>
++                          <div className="text-[10px] text-zinc-500">Offers</div>
+                         </div>
+                       </div>
+-
+                       <div className="space-y-2">
+-                        {['Sarah M. ΓÇö Google (Offer)', 'James W. ΓÇö Meta (Final Round)', 'Alex T. ΓÇö Amazon (Phone Screen)'].map((entry, i) => (
++                        {['Sarah M. ΓÇö Google (Offer) ≡ƒÄë', 'James W. ΓÇö Meta (Final Round)', 'Alex T. ΓÇö Amazon (Phone Screen)'].map((entry, i) => (
+                           <div key={i} className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg border border-white/5">
+                             <span className="text-xs text-zinc-300">{entry}</span>
+-                            <div className="w-2 h-2 rounded-full bg-green-500" />
++                            <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-green-500' : i === 1 ? 'bg-yellow-500' : 'bg-blue-500'}`} />
+                           </div>
+                         ))}
+                       </div>
+@@ -748,31 +801,31 @@ const JobPeelLanding = () => {
+ 
+         {/* ΓöÇΓöÇΓöÇ Testimonials ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+         <AnimatedSection>
+-          <section className="py-28 bg-zinc-950 border-t border-white/5" id="vision">
++          <section className="py-28 bg-zinc-950 border-t border-white/5" id="testimonials">
+             <div className="max-w-7xl mx-auto px-6">
+               <motion.div variants={fadeUp} custom={0} className="text-center max-w-3xl mx-auto mb-16">
+                 <span className="inline-block text-xs font-bold text-orange-500 uppercase tracking-[0.2em] mb-4">What People Say</span>
+                 <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+-                  Students and programs <span className="gradient-text-orange">love JobPeel</span>.
++                  Loved by job seekers <span className="gradient-text-orange">&amp; career programs</span>.
+                 </h2>
+               </motion.div>
+-
+               <div className="grid md:grid-cols-3 gap-6">
+                 {testimonials.map((t, i) => (
+                   <motion.div
+                     key={t.name}
+                     variants={scaleIn}
+                     custom={i}
+-                    className="glass-card glass-card-hover p-8 rounded-2xl transition-all duration-500 hover:-translate-y-1"
++                    className="glass-card glass-card-hover p-8 rounded-2xl transition-all duration-500 hover:-translate-y-1 relative overflow-hidden"
+                   >
+-                    <div className="flex gap-1 mb-4">
++                    <div className={`absolute top-4 right-4 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${t.type === 'individual' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'}`}>
++                      {t.type === 'individual' ? 'Job Seeker' : 'Program'}
++                    </div>
++                    <div className="flex gap-1 mb-4 mt-2">
+                       {Array.from({ length: t.rating }).map((_, j) => (
+                         <Star key={j} className="w-4 h-4 text-orange-500 fill-orange-500" />
+                       ))}
+                     </div>
+-                    <p className="text-zinc-300 leading-relaxed mb-6 text-sm italic">
+-                      &ldquo;{t.quote}&rdquo;
+-                    </p>
++                    <p className="text-zinc-300 leading-relaxed mb-6 text-sm italic">&ldquo;{t.quote}&rdquo;</p>
+                     <div>
+                       <p className="text-white font-semibold text-sm">{t.name}</p>
+                       <p className="text-zinc-500 text-xs">{t.role}</p>
+@@ -784,32 +837,69 @@ const JobPeelLanding = () => {
+           </section>
+         </AnimatedSection>
+ 
+-        {/* ΓöÇΓöÇΓöÇ CTA / Waitlist ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
++        {/* ΓöÇΓöÇΓöÇ Dual CTA ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+         <AnimatedSection>
+-          <section className="py-28 bg-zinc-900/30 relative overflow-hidden border-t border-white/5" id="waitlist">
+-            {/* Glow orbs */}
+-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-orange-600/8 blur-[180px] -z-10 animate-glow-pulse" />
+-            <div className="absolute top-20 right-20 w-[200px] h-[200px] rounded-full bg-orange-500/5 blur-[100px] -z-10" />
+-
+-            <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+-              <motion.div variants={fadeUp} custom={0}>
+-                <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+-                  Ready to transform your career program?
+-                </h2>
+-                <p className="text-xl text-zinc-400 mb-12 max-w-2xl mx-auto leading-relaxed">
+-                  Join the career operating system that gives your students the leverage they deserve. Apply for the pilot today.
+-                </p>
++          <section className="py-28 bg-zinc-900/30 relative overflow-hidden border-t border-white/5" id="cta">
++            <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-orange-600/8 blur-[160px] -z-10 animate-glow-pulse" />
++            <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-indigo-600/8 blur-[160px] -z-10 animate-glow-pulse" style={{ animationDelay: '2s' }} />
++            <div className="max-w-6xl mx-auto px-6 relative z-10">
++              <motion.div variants={fadeUp} custom={0} className="text-center mb-16">
++                <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Ready to get started?</h2>
++                <p className="text-xl text-zinc-400 max-w-2xl mx-auto">Pick the path that&apos;s right for you.</p>
+               </motion.div>
++              <div className="grid md:grid-cols-2 gap-6">
++                {/* Individual CTA */}
++                <motion.div
++                  variants={fadeUp}
++                  custom={1}
++                  className="relative p-10 rounded-3xl bg-zinc-900/80 border border-white/[0.08] hover:border-orange-500/30 transition-all duration-500 group overflow-hidden"
++                >
++                  <div className="absolute top-0 right-0 w-48 h-48 bg-orange-600/10 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity" />
++                  <div className="relative z-10">
++                    <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-6">
++                      <User className="w-6 h-6 text-orange-500" />
++                    </div>
++                    <h3 className="text-2xl font-bold text-white mb-3">For Job Seekers</h3>
++                    <p className="text-zinc-400 mb-8 leading-relaxed">
++                      Start for free today. No credit card required. Craft your first tailored cover letter in under 2 minutes.
++                    </p>
++                    <a
++                      href="/signup"
++                      className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-8 py-4 rounded-xl text-base font-bold transition-all duration-300 shadow-xl shadow-orange-600/20 group/btn w-full justify-center"
++                    >
++                      Create Free Account
++                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
++                    </a>
++                    <p className="text-center text-xs text-zinc-600 mt-4">Free forever ┬╖ No credit card needed</p>
++                  </div>
++                </motion.div>
+ 
+-              <motion.div
+-                variants={fadeUp}
+-                custom={1}
+-                className="max-w-md mx-auto"
+-              >
+-                <div className="glass-card p-6 rounded-2xl glow-orange">
+-                  <WaitlistForm />
+-                </div>
+-              </motion.div>
++                {/* Program CTA */}
++                <motion.div
++                  variants={fadeUp}
++                  custom={2}
++                  className="relative p-10 rounded-3xl bg-zinc-900/80 border border-white/[0.08] hover:border-indigo-500/30 transition-all duration-500 group overflow-hidden"
++                >
++                  <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/10 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity" />
++                  <div className="relative z-10">
++                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-6">
++                      <Building2 className="w-6 h-6 text-indigo-400" />
++                    </div>
++                    <h3 className="text-2xl font-bold text-white mb-3">For Career Programs</h3>
++                    <p className="text-zinc-400 mb-8 leading-relaxed">
++                      Get a custom demo and see how JobPeel can scale your program&apos;s outcomes. Setup is fast and we handle onboarding.
++                    </p>
++                    <a
++                      href="/request-demo"
++                      className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-xl text-base font-bold transition-all duration-300 group/btn w-full justify-center"
++                    >
++                      Get a Demo
++                      <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
++                    </a>
++                    <p className="text-center text-xs text-zinc-600 mt-4">Flexible pricing ┬╖ Dedicated onboarding</p>
++                  </div>
++                </motion.div>
++              </div>
+             </div>
+           </section>
+         </AnimatedSection>
+@@ -817,32 +907,28 @@ const JobPeelLanding = () => {
+       </main>
+ 
+       {/* ΓöÇΓöÇΓöÇ Footer ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+-      <footer className="border-t border-white/5 py-16 bg-zinc-950">
++      <footer className="border-t border-white/5 py-16 bg-zinc-950" >
+         <div className="max-w-7xl mx-auto px-6">
+           <div className="grid md:grid-cols-4 gap-12 mb-12">
+-            {/* Brand */}
+             <div className="md:col-span-2">
+               <div className="flex items-center gap-3 mb-4">
+                 <img src="/logos/jobpeel-logo-square.png" alt="JobPeel" className="w-8 h-8 rounded-lg" />
+                 <span className="text-lg font-bold text-white">JobPeel</span>
+               </div>
+               <p className="text-zinc-500 text-sm leading-relaxed max-w-sm">
+-                The AI-powered career operating system. Helping students present themselves clearly, confidently, and strategically at every stage of the hiring process.
++                The AI-powered career operating system. For individuals landing their next role and programs scaling outcomes.
+               </p>
+             </div>
+-
+-            {/* Links */}
+             <div>
+               <h4 className="text-sm font-bold text-zinc-300 mb-4 uppercase tracking-wider">Product</h4>
+               <ul className="space-y-3">
+-                {['Platform', 'For Schools', 'Pricing', 'Roadmap'].map((link) => (
++                {['How It Works', 'For Programs', 'Pricing', 'Roadmap'].map((link) => (
+                   <li key={link}>
+                     <a href="#" className="text-sm text-zinc-500 hover:text-orange-400 transition-colors">{link}</a>
+                   </li>
+                 ))}
+               </ul>
+             </div>
+-
+             <div>
+               <h4 className="text-sm font-bold text-zinc-300 mb-4 uppercase tracking-wider">Company</h4>
+               <ul className="space-y-3">
+@@ -854,7 +940,6 @@ const JobPeelLanding = () => {
+               </ul>
+             </div>
+           </div>
+-
+           <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+             <p className="text-zinc-600 text-sm">┬⌐ 2026 JobPeel Inc. All rights reserved.</p>
+             <div className="flex items-center gap-4">
+@@ -866,8 +951,8 @@ const JobPeelLanding = () => {
+             </div>
+           </div>
+         </div>
+-      </footer>
+-    </div>
++      </footer >
++    </div >
+   );
+ };
+ 
+diff --git a/app/signup/page.tsx b/app/signup/page.tsx
+index 14bf5cd..5d15fc5 100644
+--- a/app/signup/page.tsx
++++ b/app/signup/page.tsx
+@@ -25,58 +25,6 @@ export default function SignupPage() {
+         e.preventDefault();
+         setLoading(true);
+         try {
+-            // 1. Verify Waitlist Status First
+-            const { collection, query, where, getDocs } = await import("firebase/firestore");
+-            const waitlistRef = collection(db, "jobpeel_waitlist");
+-
+-            // A. Check Direct Email
+-            const qEmail = query(waitlistRef, where("work_email", "==", email));
+-            const snapEmail = await getDocs(qEmail);
+-
+-            let isApproved = false;
+-            snapEmail.forEach((doc) => {
+-                if (doc.data().status === "approved") isApproved = true;
+-            });
+-
+-            // B. Check Domain (if not already approved)
+-            if (!isApproved && email) {
+-                const domain = email.split('@')[1];
+-                if (domain) {
+-                    const qDomain = query(waitlistRef, where("domains", "array-contains", domain));
+-                    const snapDomain = await getDocs(qDomain);
+-                    snapDomain.forEach((doc) => {
+-                        if (doc.data().status === "approved") isApproved = true;
+-                    });
+-                }
+-            }
+-
+-            // C. Check Admin Emails (if not already approved)
+-            if (!isApproved && email) {
+-                const qAdmin = query(waitlistRef, where("admin_emails", "array-contains", email));
+-                const snapAdmin = await getDocs(qAdmin);
+-                snapAdmin.forEach((doc) => {
+-                    if (doc.data().status === "approved") isApproved = true;
+-                });
+-            }
+-
+-            if (!isApproved) {
+-                const { joinWaitlist } = await import("@/lib/waitlistService");
+-
+-                toast("JobPeel is limited to waitlisted users.", {
+-                    description: "Would you like to be added to the waitlist?",
+-                    duration: Infinity,
+-                    action: {
+-                        label: "Join Waitlist",
+-                        onClick: () => joinWaitlist(email, `${firstName} ${lastName}`.trim())
+-                    },
+-                    cancel: {
+-                        label: "No Thanks",
+-                        onClick: () => { }
+-                    }
+-                });
+-                return;
+-            }
+-
+             // 2. Create Authentication
+             const { user } = await createUserWithEmailAndPassword(auth, email, password);
+ 
+diff --git a/components/WaitlistForm.tsx b/components/WaitlistForm.tsx
+deleted file mode 100644
+index b81019c..0000000
+--- a/components/WaitlistForm.tsx
++++ /dev/null
+@@ -1,172 +0,0 @@
+-"use client";
+-
+-import React, { useState } from 'react';
+-import { db } from '@/lib/firebase';
+-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+-import { Loader2, CheckCircle2 } from 'lucide-react';
+-import { toast } from 'sonner';
+-
+-export const WaitlistForm = () => {
+-    const [loading, setLoading] = useState(false);
+-    const [success, setSuccess] = useState(false);
+-    const [formData, setFormData] = useState({
+-        programName: '',
+-        contactName: '',
+-        workEmail: '',
+-        programType: ''
+-    });
+-
+-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+-        const { name, value } = e.target;
+-        setFormData(prev => ({ ...prev, [name]: value }));
+-    };
+-
+-    const handleSubmit = async (e: React.FormEvent) => {
+-        e.preventDefault();
+-        setLoading(true);
+-
+-        try {
+-            await addDoc(collection(db, "jobpeel_waitlist"), {
+-                program_name: formData.programName,
+-                contact_name: formData.contactName,
+-                work_email: formData.workEmail,
+-                program_type: formData.programType,
+-                status: "pending",
+-                created_at: serverTimestamp()
+-            });
+-
+-            // Trigger Welcome Email
+-            await fetch('/api/waitlist/welcome', {
+-                method: 'POST',
+-                headers: { 'Content-Type': 'application/json' },
+-                body: JSON.stringify({
+-                    email: formData.workEmail,
+-                    name: formData.contactName
+-                })
+-            });
+-
+-            setSuccess(true);
+-            toast.success("Application submitted successfully!");
+-        } catch (error) {
+-            console.error("Error submitting form: ", error);
+-            toast.error("Something went wrong. Please try again.");
+-        } finally {
+-            setLoading(false);
+-        }
+-    };
+-
+-    if (success) {
+-        return (
+-            <div className="bg-zinc-900/50 border border-green-500/20 rounded-2xl p-8 text-center animate-in fade-in zoom-in duration-300">
+-                <div className="flex justify-center mb-4">
+-                    <div className="p-3 bg-green-500/10 rounded-full border border-green-500/20">
+-                        <CheckCircle2 className="w-8 h-8 text-green-500" />
+-                    </div>
+-                </div>
+-                <h3 className="text-xl font-bold text-white mb-2">Application Received</h3>
+-                <p className="text-zinc-400">
+-                    Thanks for applying to the JobPeel pilot. We'll be in touch with {formData.workEmail} shortly.
+-                </p>
+-            </div>
+-        );
+-    }
+-
+-    return (
+-        <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
+-            <div>
+-                <label htmlFor="programName" className="block text-sm font-medium text-zinc-400 mb-1">
+-                    Program / Institution Name
+-                </label>
+-                <input
+-                    type="text"
+-                    id="programName"
+-                    name="programName"
+-                    required
+-                    value={formData.programName}
+-                    onChange={handleChange}
+-                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all font-sans"
+-                    placeholder="e.g. University of Tech"
+-                />
+-            </div>
+-
+-            <div>
+-                <label htmlFor="contactName" className="block text-sm font-medium text-zinc-400 mb-1">
+-                    Contact Name
+-                </label>
+-                <input
+-                    type="text"
+-                    id="contactName"
+-                    name="contactName"
+-                    required
+-                    value={formData.contactName}
+-                    onChange={handleChange}
+-                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all font-sans"
+-                    placeholder="Jane Doe"
+-                />
+-            </div>
+-
+-            <div>
+-                <label htmlFor="workEmail" className="block text-sm font-medium text-zinc-400 mb-1">
+-                    Work Email
+-                </label>
+-                <input
+-                    type="email"
+-                    id="workEmail"
+-                    name="workEmail"
+-                    required
+-                    value={formData.workEmail}
+-                    onChange={handleChange}
+-                    className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all font-sans"
+-                    placeholder="jane@university.edu"
+-                />
+-            </div>
+-
+-            <div>
+-                <label htmlFor="programType" className="block text-sm font-medium text-zinc-400 mb-1">
+-                    Program Type
+-                </label>
+-                <div className="relative">
+-                    <select
+-                        id="programType"
+-                        name="programType"
+-                        required
+-                        value={formData.programType}
+-                        onChange={handleChange}
+-                        className="w-full bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all appearance-none font-sans"
+-                    >
+-                        <option value="" disabled>Select a type...</option>
+-                        <option value="University">University</option>
+-                        <option value="Bootcamp">Bootcamp</option>
+-                        <option value="Non-Profit">Non-Profit</option>
+-                        <option value="Government">Government</option>
+-                        <option value="Other">Other</option>
+-                    </select>
+-                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-zinc-500">
+-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+-                        </svg>
+-                    </div>
+-                </div>
+-            </div>
+-
+-            <button
+-                type="submit"
+-                disabled={loading}
+-                className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-orange-600/20 hover:shadow-orange-600/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4"
+-            >
+-                {loading ? (
+-                    <>
+-                        <Loader2 className="w-5 h-5 animate-spin" />
+-                        Submitting...
+-                    </>
+-                ) : (
+-                    "Apply for the pilot"
+-                )}
+-            </button>
+-
+-            <p className="text-center text-xs text-zinc-500 mt-4">
+-                Limited spots available for the initial cohort.
+-            </p>
+-        </form>
+-    );
+-};
+diff --git a/contexts/AuthContext.tsx b/contexts/AuthContext.tsx
+index 553e709..63926c1 100644
+--- a/contexts/AuthContext.tsx
++++ b/contexts/AuthContext.tsx
+@@ -76,60 +76,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
+             const result = await signInWithPopup(auth, googleProvider);
+             const user = result.user;
+ 
+-            // 1. Check Waitlist Status
+-            // Query jobpeel_waitlist for this email OR domain
+-            const { collection, query, where, getDocs } = await import("firebase/firestore");
+-            const waitlistRef = collection(db, "jobpeel_waitlist");
+-
+-            // A. Check Direct Email
+-            const qEmail = query(waitlistRef, where("work_email", "==", user.email));
+-            const snapEmail = await getDocs(qEmail);
+-
+-            let isApproved = false;
+-            snapEmail.forEach((doc) => {
+-                if (doc.data().status === "approved") isApproved = true;
+-            });
+-
+-            // B. Check Domain (if not already approved)
+-            if (!isApproved && user.email) {
+-                const domain = user.email.split('@')[1];
+-                if (domain) {
+-                    const qDomain = query(waitlistRef, where("domains", "array-contains", domain));
+-                    const snapDomain = await getDocs(qDomain);
+-                    snapDomain.forEach((doc) => {
+-                        if (doc.data().status === "approved") isApproved = true;
+-                    });
+-                }
+-            }
+-
+-            // C. Check Admin Emails (if not already approved)
+-            if (!isApproved && user.email) {
+-                const qAdmin = query(waitlistRef, where("admin_emails", "array-contains", user.email));
+-                const snapAdmin = await getDocs(qAdmin);
+-                snapAdmin.forEach((doc) => {
+-                    if (doc.data().status === "approved") isApproved = true;
+-                });
+-            }
+-
+-            if (!isApproved) {
+-                await signOut(auth);
+-                const { joinWaitlist } = await import("@/lib/waitlistService");
+-
+-                toast("JobPeel is limited to waitlisted users.", {
+-                    description: "Would you like to be added to the waitlist?",
+-                    duration: Infinity,
+-                    action: {
+-                        label: "Join Waitlist",
+-                        onClick: () => joinWaitlist(user.email || "", user.displayName || "")
+-                    },
+-                    cancel: {
+-                        label: "No Thanks",
+-                        onClick: () => { }
+-                    }
+-                });
+-                return;
+-            }
+-
+             // 2. Check if user exists in DB, if not create basic profile
+             const docRef = doc(db, "users", user.uid);
+             const docSnap = await getDoc(docRef);
+diff --git a/lib/waitlistService.ts b/lib/waitlistService.ts
+deleted file mode 100644
+index 173a694..0000000
+--- a/lib/waitlistService.ts
++++ /dev/null
+@@ -1,41 +0,0 @@
+-import { db } from "@/lib/firebase";
+-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+-import { toast } from "sonner";
+-
+-export const joinWaitlist = async (email: string, name: string = "") => {
+-    const toastId = toast.loading("Adding to waitlist...");
+-
+-    try {
+-        // Add to Firestore
+-        await addDoc(collection(db, "jobpeel_waitlist"), {
+-            program_name: "Auto-Joined",
+-            contact_name: name || "Pilot Applicant",
+-            work_email: email,
+-            program_type: "Other",
+-            status: "pending",
+-            source: "login_auto_join",
+-            created_at: serverTimestamp()
+-        });
+-
+-        // Trigger Welcome Email
+-        await fetch('/api/waitlist/welcome', {
+-            method: 'POST',
+-            headers: { 'Content-Type': 'application/json' },
+-            body: JSON.stringify({
+-                email: email,
+-                name: name || "Pilot Applicant"
+-            })
+-        });
+-
+-        toast.success("Welcome onto the waitlist!", {
+-            id: toastId,
+-            description: "We've sent you a confirmation email."
+-        });
+-    } catch (error) {
+-        console.error("Error joining waitlist:", error);
+-        toast.error("Failed to join waitlist", {
+-            id: toastId,
+-            description: "Please try again or use the form on the landing page."
+-        });
+-    }
+-};
+diff --git a/next.config.ts b/next.config.ts
+index 0744ece..b73c08b 100644
+--- a/next.config.ts
++++ b/next.config.ts
+@@ -1,7 +1,7 @@
+ import type { NextConfig } from "next";
+ 
+ const nextConfig: NextConfig = {
+-  serverExternalPackages: ["pdfjs-dist", "puppeteer"],
++  serverExternalPackages: ["pdfjs-dist", "puppeteer", "puppeteer-extra", "puppeteer-extra-plugin-stealth"],
+ };
+ 
+ export default nextConfig;
+diff --git a/package-lock.json b/package-lock.json
+index c27a7c2..ad71a6f 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -19,6 +19,8 @@
+         "pdf-parse": "^1.1.1",
+         "pdfjs-dist": "^3.11.174",
+         "puppeteer": "^24.35.0",
++        "puppeteer-extra": "^3.3.6",
++        "puppeteer-extra-plugin-stealth": "^2.11.2",
+         "react": "^19.2.3",
+         "react-dom": "^19.2.3",
+         "react-dropzone": "^15.0.0",
+@@ -2373,6 +2375,15 @@
+         "tslib": "^2.4.0"
+       }
+     },
++    "node_modules/@types/debug": {
++      "version": "4.1.12",
++      "resolved": "https://registry.npmjs.org/@types/debug/-/debug-4.1.12.tgz",
++      "integrity": "sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/ms": "*"
++      }
++    },
+     "node_modules/@types/estree": {
+       "version": "1.0.8",
+       "resolved": "https://registry.npmjs.org/@types/estree/-/estree-1.0.8.tgz",
+@@ -2394,6 +2405,12 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/@types/ms": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/@types/ms/-/ms-2.1.0.tgz",
++      "integrity": "sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==",
++      "license": "MIT"
++    },
+     "node_modules/@types/node": {
+       "version": "20.19.30",
+       "resolved": "https://registry.npmjs.org/@types/node/-/node-20.19.30.tgz",
+@@ -3133,6 +3150,15 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/arr-union": {
++      "version": "3.1.0",
++      "resolved": "https://registry.npmjs.org/arr-union/-/arr-union-3.1.0.tgz",
++      "integrity": "sha512-sKpyeERZ02v1FeCZT8lrfJq5u6goHCtpTAzPwJYe7c8SPFOboNjNg1vz2L4VTn9T4PQxEx13TbXLmYUcS6Ug7Q==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/array-buffer-byte-length": {
+       "version": "1.0.2",
+       "resolved": "https://registry.npmjs.org/array-buffer-byte-length/-/array-buffer-byte-length-1.0.2.tgz",
+@@ -3385,7 +3411,6 @@
+       "version": "1.0.2",
+       "resolved": "https://registry.npmjs.org/balanced-match/-/balanced-match-1.0.2.tgz",
+       "integrity": "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==",
+-      "devOptional": true,
+       "license": "MIT"
+     },
+     "node_modules/bare-events": {
+@@ -3517,7 +3542,6 @@
+       "version": "1.1.12",
+       "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-1.1.12.tgz",
+       "integrity": "sha512-9T9UjW3r0UW5c1Q7GTwllptXwhvYmEzFhzMfZ9H7FQWt+uZePjZPjBP/W1ZEyZ1twGWom5/56TF4lPcqjnDHcg==",
+-      "devOptional": true,
+       "license": "MIT",
+       "dependencies": {
+         "balanced-match": "^1.0.0",
+@@ -3807,6 +3831,22 @@
+         "node": ">=12"
+       }
+     },
++    "node_modules/clone-deep": {
++      "version": "0.2.4",
++      "resolved": "https://registry.npmjs.org/clone-deep/-/clone-deep-0.2.4.tgz",
++      "integrity": "sha512-we+NuQo2DHhSl+DP6jlUiAhyAjBQrYnpOk15rN6c6JSPScjiCLh8IbSU+VTcph6YS3o7mASE8a0+gbZ7ChLpgg==",
++      "license": "MIT",
++      "dependencies": {
++        "for-own": "^0.1.3",
++        "is-plain-object": "^2.0.1",
++        "kind-of": "^3.0.2",
++        "lazy-cache": "^1.0.3",
++        "shallow-clone": "^0.1.2"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/clsx": {
+       "version": "2.1.1",
+       "resolved": "https://registry.npmjs.org/clsx/-/clsx-2.1.1.tgz",
+@@ -3848,7 +3888,6 @@
+       "version": "0.0.1",
+       "resolved": "https://registry.npmjs.org/concat-map/-/concat-map-0.0.1.tgz",
+       "integrity": "sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==",
+-      "devOptional": true,
+       "license": "MIT"
+     },
+     "node_modules/console-control-strings": {
+@@ -5260,6 +5299,27 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/for-in": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/for-in/-/for-in-1.0.2.tgz",
++      "integrity": "sha512-7EwmXrOjyL+ChxMhmG5lnW9MPt1aIeZEwKhQzoBUdTV0N3zuwWDZYVJatDvZ2OyzPUvdIAZDsCetk3coyMfcnQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/for-own": {
++      "version": "0.1.5",
++      "resolved": "https://registry.npmjs.org/for-own/-/for-own-0.1.5.tgz",
++      "integrity": "sha512-SKmowqGTJoPzLO1T0BBJpkfp3EMacCMOuH40hOUbrbzElVktk4DioXVM99QkLCyKoiuOmyjgcWMpVz2xjE7LZw==",
++      "license": "MIT",
++      "dependencies": {
++        "for-in": "^1.0.1"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/framer-motion": {
+       "version": "12.27.1",
+       "resolved": "https://registry.npmjs.org/framer-motion/-/framer-motion-12.27.1.tgz",
+@@ -5287,6 +5347,20 @@
+         }
+       }
+     },
++    "node_modules/fs-extra": {
++      "version": "10.1.0",
++      "resolved": "https://registry.npmjs.org/fs-extra/-/fs-extra-10.1.0.tgz",
++      "integrity": "sha512-oRXApq54ETRj4eMiFzGnHWGy+zo5raudjuxN0b8H7s/RU2oW0Wvsx9O0ACRN/kRq9E8Vu/ReskGB5o3ji+FzHQ==",
++      "license": "MIT",
++      "dependencies": {
++        "graceful-fs": "^4.2.0",
++        "jsonfile": "^6.0.1",
++        "universalify": "^2.0.0"
++      },
++      "engines": {
++        "node": ">=12"
++      }
++    },
+     "node_modules/fs-minipass": {
+       "version": "2.1.0",
+       "resolved": "https://registry.npmjs.org/fs-minipass/-/fs-minipass-2.1.0.tgz",
+@@ -5324,8 +5398,7 @@
+       "version": "1.0.0",
+       "resolved": "https://registry.npmjs.org/fs.realpath/-/fs.realpath-1.0.0.tgz",
+       "integrity": "sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==",
+-      "license": "ISC",
+-      "optional": true
++      "license": "ISC"
+     },
+     "node_modules/function-bind": {
+       "version": "1.1.2",
+@@ -5524,7 +5597,6 @@
+       "integrity": "sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==",
+       "deprecated": "Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me",
+       "license": "ISC",
+-      "optional": true,
+       "dependencies": {
+         "fs.realpath": "^1.0.0",
+         "inflight": "^1.0.4",
+@@ -5600,7 +5672,6 @@
+       "version": "4.2.11",
+       "resolved": "https://registry.npmjs.org/graceful-fs/-/graceful-fs-4.2.11.tgz",
+       "integrity": "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==",
+-      "dev": true,
+       "license": "ISC"
+     },
+     "node_modules/has-bigints": {
+@@ -5902,7 +5973,6 @@
+       "integrity": "sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==",
+       "deprecated": "This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.",
+       "license": "ISC",
+-      "optional": true,
+       "dependencies": {
+         "once": "^1.3.0",
+         "wrappy": "1"
+@@ -5912,8 +5982,7 @@
+       "version": "2.0.4",
+       "resolved": "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz",
+       "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==",
+-      "license": "ISC",
+-      "optional": true
++      "license": "ISC"
+     },
+     "node_modules/internal-slot": {
+       "version": "1.1.0",
+@@ -6022,6 +6091,12 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/is-buffer": {
++      "version": "1.1.6",
++      "resolved": "https://registry.npmjs.org/is-buffer/-/is-buffer-1.1.6.tgz",
++      "integrity": "sha512-NcdALwpXkTm5Zvvbk7owOUSvVvBKDgKP5/ewfXEznmQFfs4ZRmanOeKBTjRVjka3QFoN6XJ+9F3USqfHqTaU5w==",
++      "license": "MIT"
++    },
+     "node_modules/is-bun-module": {
+       "version": "2.0.0",
+       "resolved": "https://registry.npmjs.org/is-bun-module/-/is-bun-module-2.0.0.tgz",
+@@ -6109,6 +6184,15 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/is-extendable": {
++      "version": "0.1.1",
++      "resolved": "https://registry.npmjs.org/is-extendable/-/is-extendable-0.1.1.tgz",
++      "integrity": "sha512-5BMULNob1vgFX6EjQw5izWDxrecWK9AM72rugNr0TFldMOi0fj6Jk+zeKIt0xGj4cEfQIJth4w3OKWOJ4f+AFw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/is-extglob": {
+       "version": "2.1.1",
+       "resolved": "https://registry.npmjs.org/is-extglob/-/is-extglob-2.1.1.tgz",
+@@ -6230,6 +6314,18 @@
+         "url": "https://github.com/sponsors/ljharb"
+       }
+     },
++    "node_modules/is-plain-object": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/is-plain-object/-/is-plain-object-2.0.4.tgz",
++      "integrity": "sha512-h5PpgXkWitc38BBMYawTYMWJHFZJVnBquFE57xFpjB8pJFiF6gZ+bU+WyI/yqXiFR5mdLsgYNaPe8uao6Uv9Og==",
++      "license": "MIT",
++      "dependencies": {
++        "isobject": "^3.0.1"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/is-regex": {
+       "version": "1.2.1",
+       "resolved": "https://registry.npmjs.org/is-regex/-/is-regex-1.2.1.tgz",
+@@ -6389,6 +6485,15 @@
+       "dev": true,
+       "license": "ISC"
+     },
++    "node_modules/isobject": {
++      "version": "3.0.1",
++      "resolved": "https://registry.npmjs.org/isobject/-/isobject-3.0.1.tgz",
++      "integrity": "sha512-WhB9zCku7EGTj/HQQRz5aUQEUeoQZH2bWcltRErOpymJ4boYE6wL9Tbr23krRPSZ+C5zqNSrSw+Cc7sZZ4b7vg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/iterator.prototype": {
+       "version": "1.1.5",
+       "resolved": "https://registry.npmjs.org/iterator.prototype/-/iterator.prototype-1.1.5.tgz",
+@@ -6488,6 +6593,18 @@
+         "node": ">=6"
+       }
+     },
++    "node_modules/jsonfile": {
++      "version": "6.2.0",
++      "resolved": "https://registry.npmjs.org/jsonfile/-/jsonfile-6.2.0.tgz",
++      "integrity": "sha512-FGuPw30AdOIUTRMC2OMRtQV+jkVj2cfPqSeWXv1NEAJ1qZ5zb1X6z1mFhbfOB/iy3ssJCD+3KuZ8r8C3uVFlAg==",
++      "license": "MIT",
++      "dependencies": {
++        "universalify": "^2.0.0"
++      },
++      "optionalDependencies": {
++        "graceful-fs": "^4.1.6"
++      }
++    },
+     "node_modules/jspdf": {
+       "version": "4.0.0",
+       "resolved": "https://registry.npmjs.org/jspdf/-/jspdf-4.0.0.tgz",
+@@ -6531,6 +6648,18 @@
+         "json-buffer": "3.0.1"
+       }
+     },
++    "node_modules/kind-of": {
++      "version": "3.2.2",
++      "resolved": "https://registry.npmjs.org/kind-of/-/kind-of-3.2.2.tgz",
++      "integrity": "sha512-NOW9QQXMoZGg/oqnVNoNTTIFEIid1627WCffUBJEdMxYApq7mNE7CpzucIPc+ZQg25Phej7IJSmX3hO+oblOtQ==",
++      "license": "MIT",
++      "dependencies": {
++        "is-buffer": "^1.1.5"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/language-subtag-registry": {
+       "version": "0.3.23",
+       "resolved": "https://registry.npmjs.org/language-subtag-registry/-/language-subtag-registry-0.3.23.tgz",
+@@ -6551,6 +6680,15 @@
+         "node": ">=0.10"
+       }
+     },
++    "node_modules/lazy-cache": {
++      "version": "1.0.4",
++      "resolved": "https://registry.npmjs.org/lazy-cache/-/lazy-cache-1.0.4.tgz",
++      "integrity": "sha512-RE2g0b5VGZsOCFOCgP7omTRYFqydmZkBwl5oNnQ1lDYC57uyO9KqNnNVxT7COSHTxrRCWVcAVOcbjk+tvh/rgQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/leac": {
+       "version": "0.6.0",
+       "resolved": "https://registry.npmjs.org/leac/-/leac-0.6.0.tgz",
+@@ -7010,6 +7148,20 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/merge-deep": {
++      "version": "3.0.3",
++      "resolved": "https://registry.npmjs.org/merge-deep/-/merge-deep-3.0.3.tgz",
++      "integrity": "sha512-qtmzAS6t6grwEkNrunqTBdn0qKwFgNWvlxUbAV8es9M7Ot1EbyApytCnvE0jALPa46ZpKDUo527kKiaWplmlFA==",
++      "license": "MIT",
++      "dependencies": {
++        "arr-union": "^3.1.0",
++        "clone-deep": "^0.2.4",
++        "kind-of": "^3.0.2"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/merge2": {
+       "version": "1.4.1",
+       "resolved": "https://registry.npmjs.org/merge2/-/merge2-1.4.1.tgz",
+@@ -7051,7 +7203,6 @@
+       "version": "3.1.2",
+       "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-3.1.2.tgz",
+       "integrity": "sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==",
+-      "devOptional": true,
+       "license": "ISC",
+       "dependencies": {
+         "brace-expansion": "^1.1.7"
+@@ -7120,6 +7271,28 @@
+       "integrity": "sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==",
+       "license": "MIT"
+     },
++    "node_modules/mixin-object": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/mixin-object/-/mixin-object-2.0.1.tgz",
++      "integrity": "sha512-ALGF1Jt9ouehcaXaHhn6t1yGWRqGaHkPFndtFVHfZXOvkIZ/yoGaSi0AHVTafb3ZBGg4dr/bDwnaEKqCXzchMA==",
++      "license": "MIT",
++      "dependencies": {
++        "for-in": "^0.1.3",
++        "is-extendable": "^0.1.1"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/mixin-object/node_modules/for-in": {
++      "version": "0.1.8",
++      "resolved": "https://registry.npmjs.org/for-in/-/for-in-0.1.8.tgz",
++      "integrity": "sha512-F0to7vbBSHP8E3l6dCjxNOLuSFAACIxFy3UehTUlG7svlXi37HHsDkyVcHo0Pq8QwrE+pXvWSVX3ZT1T9wAZ9g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/mkdirp": {
+       "version": "1.0.4",
+       "resolved": "https://registry.npmjs.org/mkdirp/-/mkdirp-1.0.4.tgz",
+@@ -7742,7 +7915,6 @@
+       "resolved": "https://registry.npmjs.org/path-is-absolute/-/path-is-absolute-1.0.1.tgz",
+       "integrity": "sha512-AVbw3UJ2e9bq64vSaS9Am0fje1Pa8pbGqTTsmXfaIiMpnr5DlDhfJOuLj9Sf95ZPVDAUerDfEk88MPmPe7UCQg==",
+       "license": "MIT",
+-      "optional": true,
+       "engines": {
+         "node": ">=0.10.0"
+       }
+@@ -8012,6 +8184,7 @@
+       "integrity": "sha512-sbjB5JnJ+3nwgSdRM/bqkFXqLxRz/vsz0GRIeTlCk+j+fGpqaF2dId9Qp25rXz9zfhqnN9s0krek1M/C2GDKtA==",
+       "hasInstallScript": true,
+       "license": "Apache-2.0",
++      "peer": true,
+       "dependencies": {
+         "@puppeteer/browsers": "2.11.1",
+         "chromium-bidi": "12.0.1",
+@@ -8045,6 +8218,143 @@
+         "node": ">=18"
+       }
+     },
++    "node_modules/puppeteer-extra": {
++      "version": "3.3.6",
++      "resolved": "https://registry.npmjs.org/puppeteer-extra/-/puppeteer-extra-3.3.6.tgz",
++      "integrity": "sha512-rsLBE/6mMxAjlLd06LuGacrukP2bqbzKCLzV1vrhHFavqQE/taQ2UXv3H5P0Ls7nsrASa+6x3bDbXHpqMwq+7A==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "@types/debug": "^4.1.0",
++        "debug": "^4.1.1",
++        "deepmerge": "^4.2.2"
++      },
++      "engines": {
++        "node": ">=8"
++      },
++      "peerDependencies": {
++        "@types/puppeteer": "*",
++        "puppeteer": "*",
++        "puppeteer-core": "*"
++      },
++      "peerDependenciesMeta": {
++        "@types/puppeteer": {
++          "optional": true
++        },
++        "puppeteer": {
++          "optional": true
++        },
++        "puppeteer-core": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/puppeteer-extra-plugin": {
++      "version": "3.2.3",
++      "resolved": "https://registry.npmjs.org/puppeteer-extra-plugin/-/puppeteer-extra-plugin-3.2.3.tgz",
++      "integrity": "sha512-6RNy0e6pH8vaS3akPIKGg28xcryKscczt4wIl0ePciZENGE2yoaQJNd17UiEbdmh5/6WW6dPcfRWT9lxBwCi2Q==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/debug": "^4.1.0",
++        "debug": "^4.1.1",
++        "merge-deep": "^3.0.1"
++      },
++      "engines": {
++        "node": ">=9.11.2"
++      },
++      "peerDependencies": {
++        "playwright-extra": "*",
++        "puppeteer-extra": "*"
++      },
++      "peerDependenciesMeta": {
++        "playwright-extra": {
++          "optional": true
++        },
++        "puppeteer-extra": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/puppeteer-extra-plugin-stealth": {
++      "version": "2.11.2",
++      "resolved": "https://registry.npmjs.org/puppeteer-extra-plugin-stealth/-/puppeteer-extra-plugin-stealth-2.11.2.tgz",
++      "integrity": "sha512-bUemM5XmTj9i2ZerBzsk2AN5is0wHMNE6K0hXBzBXOzP5m5G3Wl0RHhiqKeHToe/uIH8AoZiGhc1tCkLZQPKTQ==",
++      "license": "MIT",
++      "dependencies": {
++        "debug": "^4.1.1",
++        "puppeteer-extra-plugin": "^3.2.3",
++        "puppeteer-extra-plugin-user-preferences": "^2.4.1"
++      },
++      "engines": {
++        "node": ">=8"
++      },
++      "peerDependencies": {
++        "playwright-extra": "*",
++        "puppeteer-extra": "*"
++      },
++      "peerDependenciesMeta": {
++        "playwright-extra": {
++          "optional": true
++        },
++        "puppeteer-extra": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/puppeteer-extra-plugin-user-data-dir": {
++      "version": "2.4.1",
++      "resolved": "https://registry.npmjs.org/puppeteer-extra-plugin-user-data-dir/-/puppeteer-extra-plugin-user-data-dir-2.4.1.tgz",
++      "integrity": "sha512-kH1GnCcqEDoBXO7epAse4TBPJh9tEpVEK/vkedKfjOVOhZAvLkHGc9swMs5ChrJbRnf8Hdpug6TJlEuimXNQ+g==",
++      "license": "MIT",
++      "dependencies": {
++        "debug": "^4.1.1",
++        "fs-extra": "^10.0.0",
++        "puppeteer-extra-plugin": "^3.2.3",
++        "rimraf": "^3.0.2"
++      },
++      "engines": {
++        "node": ">=8"
++      },
++      "peerDependencies": {
++        "playwright-extra": "*",
++        "puppeteer-extra": "*"
++      },
++      "peerDependenciesMeta": {
++        "playwright-extra": {
++          "optional": true
++        },
++        "puppeteer-extra": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/puppeteer-extra-plugin-user-preferences": {
++      "version": "2.4.1",
++      "resolved": "https://registry.npmjs.org/puppeteer-extra-plugin-user-preferences/-/puppeteer-extra-plugin-user-preferences-2.4.1.tgz",
++      "integrity": "sha512-i1oAZxRbc1bk8MZufKCruCEC3CCafO9RKMkkodZltI4OqibLFXF3tj6HZ4LZ9C5vCXZjYcDWazgtY69mnmrQ9A==",
++      "license": "MIT",
++      "dependencies": {
++        "debug": "^4.1.1",
++        "deepmerge": "^4.2.2",
++        "puppeteer-extra-plugin": "^3.2.3",
++        "puppeteer-extra-plugin-user-data-dir": "^2.4.1"
++      },
++      "engines": {
++        "node": ">=8"
++      },
++      "peerDependencies": {
++        "playwright-extra": "*",
++        "puppeteer-extra": "*"
++      },
++      "peerDependenciesMeta": {
++        "playwright-extra": {
++          "optional": true
++        },
++        "puppeteer-extra": {
++          "optional": true
++        }
++      }
++    },
+     "node_modules/queue-microtask": {
+       "version": "1.2.3",
+       "resolved": "https://registry.npmjs.org/queue-microtask/-/queue-microtask-1.2.3.tgz",
+@@ -8285,7 +8595,6 @@
+       "integrity": "sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==",
+       "deprecated": "Rimraf versions prior to v4 are no longer supported",
+       "license": "ISC",
+-      "optional": true,
+       "dependencies": {
+         "glob": "^7.1.3"
+       },
+@@ -8485,6 +8794,42 @@
+         "node": ">= 0.4"
+       }
+     },
++    "node_modules/shallow-clone": {
++      "version": "0.1.2",
++      "resolved": "https://registry.npmjs.org/shallow-clone/-/shallow-clone-0.1.2.tgz",
++      "integrity": "sha512-J1zdXCky5GmNnuauESROVu31MQSnLoYvlyEn6j2Ztk6Q5EHFIhxkMhYcv6vuDzl2XEzoRr856QwzMgWM/TmZgw==",
++      "license": "MIT",
++      "dependencies": {
++        "is-extendable": "^0.1.1",
++        "kind-of": "^2.0.1",
++        "lazy-cache": "^0.2.3",
++        "mixin-object": "^2.0.1"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/shallow-clone/node_modules/kind-of": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/kind-of/-/kind-of-2.0.1.tgz",
++      "integrity": "sha512-0u8i1NZ/mg0b+W3MGGw5I7+6Eib2nx72S/QvXa0hYjEkjTknYmEYQJwGu3mLC0BrhtJjtQafTkyRUQ75Kx0LVg==",
++      "license": "MIT",
++      "dependencies": {
++        "is-buffer": "^1.0.2"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/shallow-clone/node_modules/lazy-cache": {
++      "version": "0.2.7",
++      "resolved": "https://registry.npmjs.org/lazy-cache/-/lazy-cache-0.2.7.tgz",
++      "integrity": "sha512-gkX52wvU/R8DVMMt78ATVPFMJqfW8FPz1GZ1sVHBVQHmu/WvhIWE4cE1GBzhJNFicDeYhnwp6Rl35BcAIM3YOQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/sharp": {
+       "version": "0.34.5",
+       "resolved": "https://registry.npmjs.org/sharp/-/sharp-0.34.5.tgz",
+@@ -9448,6 +9793,15 @@
+       "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==",
+       "license": "MIT"
+     },
++    "node_modules/universalify": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/universalify/-/universalify-2.0.1.tgz",
++      "integrity": "sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 10.0.0"
++      }
++    },
+     "node_modules/unrs-resolver": {
+       "version": "1.11.1",
+       "resolved": "https://registry.npmjs.org/unrs-resolver/-/unrs-resolver-1.11.1.tgz",
+diff --git a/package.json b/package.json
+index b203662..63dc5b0 100644
+--- a/package.json
++++ b/package.json
+@@ -20,6 +20,8 @@
+     "pdf-parse": "^1.1.1",
+     "pdfjs-dist": "^3.11.174",
+     "puppeteer": "^24.35.0",
++    "puppeteer-extra": "^3.3.6",
++    "puppeteer-extra-plugin-stealth": "^2.11.2",
+     "react": "^19.2.3",
+     "react-dom": "^19.2.3",
+     "react-dropzone": "^15.0.0",

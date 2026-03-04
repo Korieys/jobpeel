@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { WaitlistForm } from '@/components/WaitlistForm';
 import { motion, useInView } from 'framer-motion';
 import {
   Target,
@@ -21,13 +20,18 @@ import {
   ChevronRight,
   GraduationCap,
   Upload,
-  MousePointerClick,
   Star,
-  Github,
   Twitter,
   Linkedin,
   Mail,
+  User,
+  Building2,
+  BarChart3,
+  MessageSquare,
+  LogOut,
+  LayoutDashboard,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 /* ─── Data ───────────────────────────────────────────── */
 
@@ -62,33 +66,33 @@ const howItWorks = [
 const features = [
   {
     icon: <Target className="w-6 h-6" />,
-    title: 'Applicant Clarity',
-    desc: 'Deep profiling that helps students understand their unique value positioning in the market.',
+    title: 'Match Scoring',
+    desc: 'Know your fit before you apply. JobPeel scores your resume against the role and highlights exactly what to improve.',
   },
   {
     icon: <FileText className="w-6 h-6" />,
-    title: 'Application Excellence',
-    desc: 'Smart cover letters and tailored resumes that are strategic representations of the candidate.',
+    title: 'Tailored Cover Letters',
+    desc: 'AI-crafted cover letters that sound like you, not a template. Specific to the role, company, and your background.',
   },
   {
-    icon: <Users className="w-6 h-6" />,
+    icon: <MessageSquare className="w-6 h-6" />,
     title: 'Interview Prep',
-    desc: 'Real practice with AI-generated questions specific to the role and their background.',
+    desc: 'Practice with AI-generated questions specific to the role. Walk in prepared, not panicked.',
   },
   {
     icon: <TrendingUp className="w-6 h-6" />,
-    title: 'Placement Momentum',
-    desc: 'Track applications and outcomes. Give your program visibility into student success.',
+    title: 'Application Tracker',
+    desc: 'Track every application in one place. Know what\'s active, what\'s stale, and where to focus next.',
   },
   {
     icon: <Zap className="w-6 h-6" />,
-    title: 'Talent Signals',
-    desc: 'Creating verified indicators of skill and readiness that employers can trust.',
+    title: 'Resume Optimizer',
+    desc: 'Get specific, actionable suggestions to tighten your resume for each role — not generic advice.',
   },
   {
-    icon: <Briefcase className="w-6 h-6" />,
-    title: 'Career Companion',
-    desc: 'A persistent system that grows with your alumni from their first job to executive roles.',
+    icon: <BarChart3 className="w-6 h-6" />,
+    title: 'Program Analytics',
+    desc: 'For career centers: real-time placement dashboards, bulk student access, and program-wide insights.',
   },
 ];
 
@@ -98,23 +102,26 @@ const testimonials = [
     role: 'CS Senior, Howard University',
     quote: 'I went from zero callbacks to three interviews in two weeks. The cover letters actually sound like me.',
     rating: 5,
+    type: 'individual',
   },
   {
-    name: 'Priya S.',
-    role: 'MBA Candidate, UT Austin',
-    quote: 'Our career center adopted JobPeel and placement rates jumped 18% in one semester.',
+    name: 'Dr. Lisa Park',
+    role: 'Career Director, UT Austin MBA',
+    quote: 'We replaced three manual review sessions per week with JobPeel. Placement rates jumped 18% in one semester.',
     rating: 5,
+    type: 'program',
   },
   {
     name: 'David K.',
     role: 'Bootcamp Graduate',
-    quote: 'The match scoring showed me which roles I was actually qualified for. Landed at a FAANG.',
+    quote: 'The match scoring showed me which roles I was actually qualified for. I stopped shotgunning and landed at a FAANG.',
     rating: 5,
+    type: 'individual',
   },
 ];
 
 const stats = [
-  { value: '10,000+', label: 'Students Served' },
+  { value: '10,000+', label: 'Users' },
   { value: '94%', label: 'Avg Match Score' },
   { value: '3x', label: 'More Interviews' },
   { value: '200+', label: 'Partner Programs' },
@@ -129,11 +136,6 @@ const fadeUp: any = {
     y: 0,
     transition: { duration: 0.6, delay: i * 0.1, ease: [0.25, 0.46, 0.45, 0.94] },
   }),
-};
-
-const fadeIn: any = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.8 } },
 };
 
 const scaleIn: any = {
@@ -165,6 +167,7 @@ const AnimatedSection = ({ children, className = '' }: { children: React.ReactNo
 /* ─── Page ───────────────────────────────────────────── */
 
 const JobPeelLanding = () => {
+  const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -200,29 +203,51 @@ const JobPeelLanding = () => {
 
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-8">
-            {['Platform', 'For Schools', 'Vision'].map((link) => (
+            {[
+              { label: 'How It Works', href: '#how-it-works' },
+              { label: 'For Individuals', href: '#for-individuals' },
+              { label: 'For Programs', href: '#for-schools' },
+            ].map((link) => (
               <a
-                key={link}
-                href={`#${link.toLowerCase().replace(/\s/g, '-')}`}
+                key={link.label}
+                href={link.href}
                 className="text-sm font-medium text-zinc-400 hover:text-orange-400 transition-colors duration-300"
               >
-                {link}
+                {link.label}
               </a>
             ))}
           </div>
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
-            <a href="/login" className="text-sm font-medium text-zinc-300 hover:text-white transition-colors">
-              Log in
-            </a>
-            <a
-              href="/signup"
-              className="relative group bg-orange-600 hover:bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 shadow-lg shadow-orange-600/20 hover:shadow-orange-500/30"
-            >
-              Get Started
-              <div className="absolute inset-0 rounded-xl bg-orange-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
-            </a>
+            {user ? (
+              <>
+                <a href="/dashboard" className="text-sm font-medium text-zinc-300 hover:text-white transition-colors flex items-center gap-2">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </a>
+                <button
+                  onClick={() => logout()}
+                  className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 border border-white/5"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <a href="/login" className="text-sm font-medium text-zinc-300 hover:text-white transition-colors">
+                  Log in
+                </a>
+                <a
+                  href="/signup"
+                  className="relative group bg-orange-600 hover:bg-orange-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 shadow-lg shadow-orange-600/20 hover:shadow-orange-500/30"
+                >
+                  Get Started Free
+                  <div className="absolute inset-0 rounded-xl bg-orange-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
+                </a>
+              </>
+            )}
           </div>
 
           {/* Mobile Toggle */}
@@ -241,21 +266,43 @@ const JobPeelLanding = () => {
             animate={{ opacity: 1, y: 0 }}
             className="absolute top-full left-0 right-0 bg-zinc-950/95 backdrop-blur-xl border-b border-white/5 p-6 flex flex-col gap-4 md:hidden"
           >
-            {['Platform', 'For Schools', 'Vision'].map((link) => (
+            {[
+              { label: 'How It Works', href: '#how-it-works' },
+              { label: 'For Individuals', href: '#for-individuals' },
+              { label: 'For Programs', href: '#for-schools' },
+            ].map((link) => (
               <a
-                key={link}
-                href={`#${link.toLowerCase().replace(/\s/g, '-')}`}
+                key={link.label}
+                href={link.href}
                 className="text-lg font-medium text-zinc-100 hover:text-orange-400 transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {link}
+                {link.label}
               </a>
             ))}
             <hr className="border-zinc-800" />
-            <a href="/login" className="text-lg font-medium text-zinc-100">Log in</a>
-            <a href="/signup" className="bg-orange-600 text-white w-full py-3 rounded-xl font-semibold text-center">
-              Get Started
-            </a>
+            {user ? (
+              <>
+                <a href="/dashboard" className="text-lg font-medium text-zinc-100 flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                  <LayoutDashboard className="w-5 h-5" />
+                  Dashboard
+                </a>
+                <button
+                  onClick={() => { logout(); setMobileMenuOpen(false); }}
+                  className="bg-zinc-900 border border-white/5 text-white w-full py-3 rounded-xl font-semibold text-center flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-5 h-5" />
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <a href="/login" className="text-lg font-medium text-zinc-100" onClick={() => setMobileMenuOpen(false)}>Log in</a>
+                <a href="/signup" className="bg-orange-600 text-white w-full py-3 rounded-xl font-semibold text-center" onClick={() => setMobileMenuOpen(false)}>
+                  Get Started Free
+                </a>
+              </>
+            )}
           </motion.div>
         )}
       </nav>
@@ -264,24 +311,17 @@ const JobPeelLanding = () => {
 
         {/* ─── Hero Section ──────────────────────────── */}
         <section className="pt-36 pb-20 lg:pt-52 lg:pb-36 relative overflow-hidden">
-          {/* Background Effects */}
           <div className="absolute top-0 right-0 w-1/2 h-full -z-10">
             <div className="absolute top-20 right-20 w-[500px] h-[500px] rounded-full bg-orange-600/8 blur-[150px] animate-glow-pulse" />
             <div className="absolute bottom-20 right-40 w-[300px] h-[300px] rounded-full bg-orange-500/5 blur-[100px] animate-glow-pulse" style={{ animationDelay: '2s' }} />
           </div>
           <div className="absolute top-40 left-0 w-[400px] h-[400px] rounded-full bg-zinc-900/60 blur-[120px] -z-10" />
-
-          {/* Grid pattern overlay */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] -z-10" />
 
           <div className="max-w-7xl mx-auto px-6 w-full">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
               {/* Left: Copy */}
-              <motion.div
-                initial="hidden"
-                animate="visible"
-                className="max-w-xl"
-              >
+              <motion.div initial="hidden" animate="visible" className="max-w-xl">
                 <motion.div
                   variants={fadeUp}
                   custom={0}
@@ -291,7 +331,7 @@ const JobPeelLanding = () => {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
                   </span>
-                  Now Onboarding Career Programs
+                  Now open to everyone — individuals &amp; programs
                 </motion.div>
 
                 <motion.h1
@@ -299,9 +339,9 @@ const JobPeelLanding = () => {
                   custom={1}
                   className="text-5xl lg:text-[3.75rem] xl:text-7xl font-bold tracking-tight leading-[1.08] mb-6 text-white"
                 >
-                  Help more students land interviews with{' '}
+                  Land more interviews with{' '}
                   <span className="gradient-text-orange">
-                    tailored applications on autopilot
+                    applications built for the role
                   </span>
                   .
                 </motion.h1>
@@ -311,22 +351,23 @@ const JobPeelLanding = () => {
                   custom={2}
                   className="text-lg lg:text-xl text-zinc-400 mb-10 leading-relaxed"
                 >
-                  JobPeel turns a student's resume and a job link into a focused cover letter that matches the role, plus suggestions to tighten their resume. Career staff stop rewriting documents from scratch and instead guide students using drafts already aligned with each posting.
+                  JobPeel turns your resume and any job link into a tailored cover letter, match score, and resume suggestions — in seconds. For job seekers and career programs alike.
                 </motion.p>
 
                 <motion.div variants={fadeUp} custom={3} className="flex flex-col sm:flex-row gap-4">
                   <a
-                    href="#waitlist"
+                    href="/signup"
                     className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-8 py-4 rounded-xl text-base font-semibold transition-all duration-300 shadow-xl shadow-orange-600/20 hover:shadow-orange-500/30 group"
                   >
-                    Apply for the Pilot
+                    Start for Free
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </a>
                   <a
-                    href="#platform"
-                    className="flex items-center justify-center gap-2 border border-zinc-800 hover:border-zinc-700 text-white px-8 py-4 rounded-xl text-base font-semibold transition-all duration-300 hover:bg-zinc-900/50"
+                    href="#for-schools"
+                    className="flex items-center justify-center gap-2 border border-zinc-700 hover:border-orange-500/40 text-zinc-300 hover:text-white px-8 py-4 rounded-xl text-base font-semibold transition-all duration-300 hover:bg-zinc-900/50"
                   >
-                    See How It Works
+                    <GraduationCap className="w-4 h-4" />
+                    For Career Programs
                   </a>
                 </motion.div>
 
@@ -343,12 +384,12 @@ const JobPeelLanding = () => {
                         key={i}
                         className={`w-9 h-9 rounded-full border-2 border-zinc-950 ${bg} flex items-center justify-center text-[10px] font-bold text-white`}
                       >
-                        {['MJ', 'PS', 'DK', 'AL'][i]}
+                        {['MJ', 'LP', 'DK', 'AL'][i]}
                       </div>
                     ))}
                   </div>
                   <p className="text-sm text-zinc-500">
-                    Trusted by <span className="text-zinc-300 font-medium">10,000+</span> students
+                    Trusted by <span className="text-zinc-300 font-medium">10,000+</span> users &amp; 200+ programs
                   </p>
                 </motion.div>
               </motion.div>
@@ -363,7 +404,6 @@ const JobPeelLanding = () => {
                 <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/10 to-orange-600/5 rounded-3xl blur-3xl animate-glow-pulse" />
                 <div className="relative glass-card rounded-2xl p-2 shadow-2xl glow-orange hover:rotate-0 transition-transform duration-700 ease-out">
                   <div className="bg-zinc-950 rounded-xl overflow-hidden border border-white/5 aspect-[4/3] flex flex-col relative">
-                    {/* Browser Bar */}
                     <div className="bg-zinc-900/60 px-4 py-3 flex items-center gap-2 border-b border-white/5">
                       <div className="flex gap-1.5">
                         <div className="w-3 h-3 rounded-full bg-red-500/30 border border-red-500/40" />
@@ -372,11 +412,10 @@ const JobPeelLanding = () => {
                       </div>
                       <div className="ml-4 bg-zinc-800/60 px-3 py-1 rounded-md flex items-center gap-2 border border-white/5">
                         <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                        <span className="text-[10px] font-mono text-zinc-400">jobpeel.app/workspace</span>
+                        <span className="text-[10px] font-mono text-zinc-400">jobpeel.app/dashboard</span>
                       </div>
                     </div>
 
-                    {/* Content */}
                     <div className="p-6 flex-grow flex flex-col gap-5">
                       <div className="flex justify-between items-start">
                         <div>
@@ -416,15 +455,15 @@ const JobPeelLanding = () => {
                         </div>
                         <div className="flex items-center gap-2 text-xs text-zinc-400">
                           <Check className="w-3 h-3 text-green-500" />
-                          <span>Extracted keywords: "Systems", "React"</span>
+                          <span>Extracted keywords: &quot;Systems&quot;, &quot;React&quot;</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-orange-400 bg-orange-500/10 p-2 rounded border border-orange-500/20">
                           <Sparkles className="w-3 h-3 animate-pulse" />
                           <span>Drafting cover letter...</span>
                         </div>
                         <div className="mt-1 text-[10px] text-zinc-500 font-mono bg-black/30 p-2 rounded leading-relaxed opacity-70">
-                          "I'm excited to apply for the Product Designer role. My experience building{' '}
-                          <span className="text-orange-400 bg-orange-500/10">design systems</span>..."
+                          &ldquo;I&#39;m excited to apply for the Product Designer role. My experience building{' '}
+                          <span className="text-orange-400 bg-orange-500/10">design systems</span>...&rdquo;
                         </div>
                       </div>
                     </div>
@@ -456,15 +495,8 @@ const JobPeelLanding = () => {
             <div className="max-w-7xl mx-auto px-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                 {stats.map((stat, i) => (
-                  <motion.div
-                    key={stat.label}
-                    variants={fadeUp}
-                    custom={i}
-                    className="text-center"
-                  >
-                    <div className="text-3xl md:text-4xl font-bold gradient-text-orange mb-1">
-                      {stat.value}
-                    </div>
+                  <motion.div key={stat.label} variants={fadeUp} custom={i} className="text-center">
+                    <div className="text-3xl md:text-4xl font-bold gradient-text-orange mb-1">{stat.value}</div>
                     <div className="text-sm text-zinc-500">{stat.label}</div>
                   </motion.div>
                 ))}
@@ -477,14 +509,12 @@ const JobPeelLanding = () => {
         <section className="py-14 bg-zinc-950/50 overflow-hidden">
           <div className="max-w-7xl mx-auto px-6">
             <p className="text-center text-xs font-bold text-zinc-600 mb-10 uppercase tracking-[0.2em]">
-              Helping students land roles at
+              Helping users land roles at
             </p>
           </div>
           <div className="relative">
-            {/* Gradient Edges */}
             <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-zinc-950 to-transparent z-10" />
             <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-zinc-950 to-transparent z-10" />
-            {/* Marquee */}
             <div className="flex animate-marquee whitespace-nowrap">
               {[...NewBrandLogos, ...NewBrandLogos, ...NewBrandLogos, ...NewBrandLogos].map((logo, i) => (
                 <div key={`${logo.name}-${i}`} className="mx-12 md:mx-20 flex-shrink-0 flex items-center">
@@ -499,9 +529,113 @@ const JobPeelLanding = () => {
           </div>
         </section>
 
+        {/* ─── Who Is It For? ─────────────────────────── */}
+        <AnimatedSection>
+          <section className="py-28 bg-zinc-950 relative border-t border-white/5" id="for-individuals">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-orange-950/10 via-transparent to-transparent -z-10" />
+            <div className="max-w-7xl mx-auto px-6">
+              <motion.div variants={fadeUp} custom={0} className="text-center max-w-3xl mx-auto mb-16">
+                <span className="inline-block text-xs font-bold text-orange-500 uppercase tracking-[0.2em] mb-4">Built for everyone</span>
+                <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                  Two audiences. <span className="gradient-text-orange">One platform.</span>
+                </h2>
+                <p className="text-lg text-zinc-400 leading-relaxed">
+                  Whether you&apos;re a student hunting for your first role or a career director scaling a program — JobPeel works for you.
+                </p>
+              </motion.div>
+
+              <div className="grid md:grid-cols-2 gap-6 lg:gap-8">
+                {/* For Individuals */}
+                <motion.div
+                  variants={fadeUp}
+                  custom={1}
+                  className="relative p-10 rounded-3xl bg-zinc-900/60 border border-white/[0.08] hover:border-orange-500/20 transition-all duration-500 group overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/5 rounded-full blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                  <div className="relative z-10">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-sm font-bold mb-6">
+                      <User className="w-4 h-4" />
+                      For Job Seekers
+                    </div>
+                    <h3 className="text-3xl font-bold text-white mb-4 leading-tight">You, applying smarter.</h3>
+                    <p className="text-zinc-400 mb-8 leading-relaxed">
+                      Stop sending the same resume to every job. JobPeel helps you tailor every application in seconds, understand your fit, and walk into every interview prepared.
+                    </p>
+                    <ul className="space-y-3 mb-10">
+                      {[
+                        'AI-tailored cover letters that sound like you',
+                        'Match scoring vs. any job posting',
+                        'Resume optimization suggestions per role',
+                        'Interview prep with role-specific questions',
+                        'Application tracker to stay organized',
+                      ].map((item, i) => (
+                        <li key={i} className="flex items-start gap-3 text-zinc-300">
+                          <div className="p-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 mt-0.5 shrink-0">
+                            <Check className="w-3.5 h-3.5 text-orange-500" />
+                          </div>
+                          <span className="text-sm">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <a
+                      href="/signup"
+                      className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 shadow-lg shadow-orange-600/20 group/btn"
+                    >
+                      Start for Free
+                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                    </a>
+                  </div>
+                </motion.div>
+
+                {/* For Programs */}
+                <motion.div
+                  variants={fadeUp}
+                  custom={2}
+                  className="relative p-10 rounded-3xl bg-zinc-900/60 border border-white/[0.08] hover:border-indigo-500/20 transition-all duration-500 group overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 rounded-full blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                  <div className="relative z-10">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-bold mb-6">
+                      <Building2 className="w-4 h-4" />
+                      For Career Programs
+                    </div>
+                    <h3 className="text-3xl font-bold text-white mb-4 leading-tight">Your students, scaling faster.</h3>
+                    <p className="text-zinc-400 mb-8 leading-relaxed">
+                      Give every student access to a personal career coach without burning out your advisors. Track outcomes, surface insights, and prove program ROI — all in one dashboard.
+                    </p>
+                    <ul className="space-y-3 mb-10">
+                      {[
+                        'Bulk student access under one account',
+                        'Admin dashboard with placement analytics',
+                        'Automated cover letter & resume tooling',
+                        'Reduce manual advisor workload by 60%',
+                        'Exportable reports for stakeholders',
+                      ].map((item, i) => (
+                        <li key={i} className="flex items-start gap-3 text-zinc-300">
+                          <div className="p-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 mt-0.5 shrink-0">
+                            <Check className="w-3.5 h-3.5 text-indigo-400" />
+                          </div>
+                          <span className="text-sm">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <a
+                      href="#for-schools"
+                      className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 group/btn"
+                    >
+                      See Program Features
+                      <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                    </a>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          </section>
+        </AnimatedSection>
+
         {/* ─── How It Works ──────────────────────────── */}
         <AnimatedSection>
-          <section className="py-28 bg-zinc-950 relative" id="platform">
+          <section className="py-28 bg-zinc-950 relative" id="how-it-works">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-950/20 via-transparent to-transparent -z-10" />
             <div className="max-w-7xl mx-auto px-6">
               <motion.div variants={fadeUp} custom={0} className="text-center max-w-3xl mx-auto mb-20">
@@ -510,25 +644,16 @@ const JobPeelLanding = () => {
                   Three steps to a <span className="gradient-text-orange">stronger application</span>.
                 </h2>
                 <p className="text-lg text-zinc-400 leading-relaxed">
-                  No more blank-page anxiety. Just paste, upload, and let JobPeel handle the heavy lifting.
+                  No more blank-page anxiety. Paste, upload, and let JobPeel handle the heavy lifting.
                 </p>
               </motion.div>
 
               <div className="grid md:grid-cols-3 gap-8 relative">
-                {/* Connecting Line (desktop) */}
                 <div className="hidden md:block absolute top-8 left-[16.67%] right-[16.67%] h-px bg-gradient-to-r from-orange-500/30 via-orange-500/10 to-orange-500/30" />
-
                 {howItWorks.map((item, i) => (
-                  <motion.div
-                    key={item.step}
-                    variants={scaleIn}
-                    custom={i}
-                    className="relative text-center group"
-                  >
+                  <motion.div key={item.step} variants={scaleIn} custom={i} className="relative text-center group">
                     <div className="relative inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-white/5 mb-6 group-hover:border-orange-500/30 transition-all duration-500 group-hover:shadow-lg group-hover:shadow-orange-500/10">
-                      <div className="text-orange-500 group-hover:scale-110 transition-transform duration-300">
-                        {item.icon}
-                      </div>
+                      <div className="text-orange-500 group-hover:scale-110 transition-transform duration-300">{item.icon}</div>
                       <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-orange-600 text-white text-[10px] font-bold flex items-center justify-center shadow-lg">
                         {item.step}
                       </div>
@@ -542,94 +667,17 @@ const JobPeelLanding = () => {
           </section>
         </AnimatedSection>
 
-        {/* ─── Problem / Solution ────────────────────── */}
-        <AnimatedSection>
-          <section className="py-28 bg-zinc-950 relative">
-            <div className="max-w-7xl mx-auto px-6">
-              <motion.div variants={fadeUp} custom={0} className="text-center max-w-3xl mx-auto mb-20">
-                <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white">
-                  The hiring process is{' '}
-                  <span className="line-through decoration-orange-600 decoration-4 text-zinc-500">broken</span>.
-                </h2>
-                <p className="text-lg text-zinc-400 leading-relaxed">
-                  Students send generic applications into the void. Career centers are overwhelmed reviewing endless drafts. The result is wasted effort and missed opportunities.
-                </p>
-              </motion.div>
-
-              <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-                <motion.div
-                  variants={fadeUp}
-                  custom={1}
-                  className="p-10 rounded-3xl border border-white/5 bg-zinc-900/30 backdrop-blur-sm"
-                >
-                  <h3 className="text-2xl font-bold mb-8 flex items-center gap-3 text-white">
-                    <span className="w-1.5 h-8 bg-zinc-700 rounded-full" />
-                    The Old Way
-                  </h3>
-                  <ul className="space-y-5">
-                    {[
-                      'Guessing what ATS systems want',
-                      'Blindly submitting generic resumes',
-                      'Career staff rewriting from scratch',
-                      'Students ghosted by recruiters',
-                      'Low interview conversion rates',
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-center gap-4 text-zinc-500 group">
-                        <div className="p-1 rounded-full bg-zinc-800/50 group-hover:bg-red-900/20 transition-colors">
-                          <X className="w-5 h-5 shrink-0 text-zinc-600 group-hover:text-red-500 transition-colors" />
-                        </div>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-
-                <motion.div
-                  variants={fadeUp}
-                  custom={2}
-                  className="p-10 rounded-3xl bg-zinc-900 text-white shadow-2xl relative overflow-hidden group border border-white/10 hover:border-orange-500/30 transition-colors duration-500"
-                >
-                  <div className="absolute top-0 right-0 w-80 h-80 bg-orange-600/15 rounded-full blur-[100px] opacity-30 group-hover:opacity-50 transition-opacity" />
-                  <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
-                    <span className="w-1.5 h-8 bg-orange-500 rounded-full shadow-[0_0_12px_rgba(246,152,90,0.8)]" />
-                    The JobPeel Way
-                  </h3>
-                  <ul className="space-y-5">
-                    {[
-                      'Clear understanding of candidate positioning',
-                      'Tailored applications for every role',
-                      'AI that learns the student\'s voice',
-                      'Staff act as strategic guides, not editors',
-                      'Prepared, articulate, and competitive candidates',
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-center gap-4 text-zinc-200">
-                        <div className="p-1 rounded-full bg-orange-500/10 border border-orange-500/20">
-                          <CheckCircle2 className="w-5 h-5 shrink-0 text-orange-500" />
-                        </div>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-              </div>
-            </div>
-          </section>
-        </AnimatedSection>
-
         {/* ─── Features Grid ─────────────────────────── */}
         <AnimatedSection>
           <section className="py-28 bg-zinc-900/20 border-t border-white/5" id="features">
             <div className="max-w-7xl mx-auto px-6">
               <motion.div variants={fadeUp} custom={0} className="mb-20">
                 <span className="inline-block text-xs font-bold text-orange-500 uppercase tracking-[0.2em] mb-4">Platform</span>
-                <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">
-                  A complete career operating system.
-                </h2>
+                <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">Everything you need to get hired.</h2>
                 <p className="text-xl text-zinc-400 max-w-2xl">
-                  Not just a document tool. A system for clarity, leverage, and momentum for your program.
+                  From your first application to placement tracking, JobPeel is the complete career operating system.
                 </p>
               </motion.div>
-
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {features.map((card, i) => (
                   <motion.div
@@ -639,9 +687,7 @@ const JobPeelLanding = () => {
                     className="glass-card glass-card-hover p-8 rounded-2xl transition-all duration-500 group cursor-default hover:-translate-y-1"
                   >
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-zinc-800/80 border border-white/5 group-hover:border-orange-500/20 group-hover:bg-zinc-800 transition-all duration-500">
-                      <div className="text-orange-500 group-hover:scale-110 transition-transform duration-300">
-                        {card.icon}
-                      </div>
+                      <div className="text-orange-500 group-hover:scale-110 transition-transform duration-300">{card.icon}</div>
                     </div>
                     <h3 className="text-xl font-bold text-white mb-3">{card.title}</h3>
                     <p className="leading-relaxed text-zinc-400 group-hover:text-zinc-300 transition-colors">{card.desc}</p>
@@ -656,27 +702,25 @@ const JobPeelLanding = () => {
         <AnimatedSection>
           <section className="py-28 bg-zinc-950 relative overflow-hidden border-t border-white/5" id="for-schools">
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] opacity-30" />
-
             <div className="max-w-7xl mx-auto px-6 relative z-10">
               <div className="grid lg:grid-cols-2 gap-16 items-center">
                 <motion.div variants={fadeUp} custom={0}>
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/5 border border-orange-500/20 text-orange-400 text-xs font-bold uppercase tracking-wider mb-6">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/5 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-6">
                     <GraduationCap className="w-4 h-4" />
-                    For Schools & Bootcamps
+                    For Schools &amp; Bootcamps
                   </div>
                   <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
                     The Career Center <span className="gradient-text-orange">in a Box</span>.
                   </h2>
                   <p className="text-zinc-400 text-lg mb-8 leading-relaxed">
-                    Scale personalized guidance to thousands of students at once. JobPeel assists advisors with automation, dashboards, and placement insights without sacrificing quality.
+                    Scale personalized guidance to thousands of students at once. JobPeel gives advisors automation, dashboards, and placement insights — without sacrificing quality.
                   </p>
-
                   <ul className="space-y-4 mb-10">
                     {[
-                      'Admin dashboards & student monitoring',
-                      'Automated placement tracking',
-                      'Reduce advisor manual workload',
-                      'Improve placement outcomes',
+                      'Admin dashboards & real-time student monitoring',
+                      'Automated placement tracking & outcome reporting',
+                      'Reduce advisor manual workload by 60%',
+                      'Exportable CSV & PDF reports for stakeholders',
                     ].map((item, i) => (
                       <li key={i} className="flex items-center gap-3">
                         <div className="p-1 rounded-full bg-orange-500/10 border border-orange-500/20">
@@ -686,19 +730,27 @@ const JobPeelLanding = () => {
                       </li>
                     ))}
                   </ul>
-
-                  <a
-                    href="#waitlist"
-                    className="inline-flex items-center gap-2 bg-white text-zinc-900 hover:bg-zinc-100 px-8 py-3.5 rounded-xl font-bold transition-all duration-300 shadow-lg group"
-                  >
-                    Partner With Us
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </a>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <a
+                      href="/signup"
+                      className="inline-flex items-center justify-center gap-2 bg-white text-zinc-900 hover:bg-zinc-100 px-8 py-3.5 rounded-xl font-bold transition-all duration-300 shadow-lg group"
+                    >
+                      Partner With Us
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </a>
+                    <a
+                      href="mailto:hello@jobpeel.app"
+                      className="inline-flex items-center justify-center gap-2 border border-zinc-700 hover:border-zinc-500 text-zinc-300 px-8 py-3.5 rounded-xl font-medium transition-all duration-300"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Contact Sales
+                    </a>
+                  </div>
                 </motion.div>
 
                 <motion.div variants={fadeUp} custom={2} className="relative">
-                  <div className="absolute -inset-4 bg-gradient-to-br from-orange-500/10 to-transparent rounded-3xl blur-2xl" />
-                  <div className="relative glass-card rounded-2xl p-6 glow-orange">
+                  <div className="absolute -inset-4 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-3xl blur-2xl" />
+                  <div className="relative glass-card rounded-2xl p-6" style={{ boxShadow: '0 0 40px rgba(99,102,241,0.15), 0 0 80px rgba(99,102,241,0.05)' }}>
                     <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
                       <div className="flex gap-1.5">
                         <div className="w-3 h-3 rounded-full bg-zinc-700" />
@@ -707,34 +759,35 @@ const JobPeelLanding = () => {
                       </div>
                       <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">Admin Dashboard</div>
                     </div>
-
                     <div className="space-y-5">
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="text-sm text-zinc-400 font-medium">Placement Rate</h4>
-                          <span className="text-green-400 text-sm font-bold">+18% vs LY</span>
+                          <span className="text-green-400 text-sm font-bold">+18% vs Last Year</span>
                         </div>
                         <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
-                          <div className="h-full w-[82%] bg-gradient-to-r from-orange-600 to-orange-400 rounded-full" />
+                          <div className="h-full w-[82%] bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full" />
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-zinc-800/50 p-4 rounded-xl border border-white/5">
-                          <div className="text-3xl font-bold mb-1 text-white">842</div>
-                          <div className="text-xs text-zinc-500">Active Students</div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
+                          <div className="text-2xl font-bold mb-0.5 text-white">842</div>
+                          <div className="text-[10px] text-zinc-500">Students</div>
                         </div>
-                        <div className="bg-zinc-800/50 p-4 rounded-xl border border-white/5">
-                          <div className="text-3xl font-bold mb-1 text-white">156</div>
-                          <div className="text-xs text-zinc-500">Interviews This Week</div>
+                        <div className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
+                          <div className="text-2xl font-bold mb-0.5 text-indigo-400">156</div>
+                          <div className="text-[10px] text-zinc-500">Interviews</div>
+                        </div>
+                        <div className="bg-zinc-800/50 p-3 rounded-xl border border-white/5">
+                          <div className="text-2xl font-bold mb-0.5 text-green-400">34</div>
+                          <div className="text-[10px] text-zinc-500">Offers</div>
                         </div>
                       </div>
-
                       <div className="space-y-2">
-                        {['Sarah M. — Google (Offer)', 'James W. — Meta (Final Round)', 'Alex T. — Amazon (Phone Screen)'].map((entry, i) => (
+                        {['Sarah M. — Google (Offer) 🎉', 'James W. — Meta (Final Round)', 'Alex T. — Amazon (Phone Screen)'].map((entry, i) => (
                           <div key={i} className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg border border-white/5">
                             <span className="text-xs text-zinc-300">{entry}</span>
-                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-green-500' : i === 1 ? 'bg-yellow-500' : 'bg-blue-500'}`} />
                           </div>
                         ))}
                       </div>
@@ -748,31 +801,31 @@ const JobPeelLanding = () => {
 
         {/* ─── Testimonials ──────────────────────────── */}
         <AnimatedSection>
-          <section className="py-28 bg-zinc-950 border-t border-white/5" id="vision">
+          <section className="py-28 bg-zinc-950 border-t border-white/5" id="testimonials">
             <div className="max-w-7xl mx-auto px-6">
               <motion.div variants={fadeUp} custom={0} className="text-center max-w-3xl mx-auto mb-16">
                 <span className="inline-block text-xs font-bold text-orange-500 uppercase tracking-[0.2em] mb-4">What People Say</span>
                 <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-                  Students and programs <span className="gradient-text-orange">love JobPeel</span>.
+                  Loved by job seekers <span className="gradient-text-orange">&amp; career programs</span>.
                 </h2>
               </motion.div>
-
               <div className="grid md:grid-cols-3 gap-6">
                 {testimonials.map((t, i) => (
                   <motion.div
                     key={t.name}
                     variants={scaleIn}
                     custom={i}
-                    className="glass-card glass-card-hover p-8 rounded-2xl transition-all duration-500 hover:-translate-y-1"
+                    className="glass-card glass-card-hover p-8 rounded-2xl transition-all duration-500 hover:-translate-y-1 relative overflow-hidden"
                   >
-                    <div className="flex gap-1 mb-4">
+                    <div className={`absolute top-4 right-4 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${t.type === 'individual' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'}`}>
+                      {t.type === 'individual' ? 'Job Seeker' : 'Program'}
+                    </div>
+                    <div className="flex gap-1 mb-4 mt-2">
                       {Array.from({ length: t.rating }).map((_, j) => (
                         <Star key={j} className="w-4 h-4 text-orange-500 fill-orange-500" />
                       ))}
                     </div>
-                    <p className="text-zinc-300 leading-relaxed mb-6 text-sm italic">
-                      &ldquo;{t.quote}&rdquo;
-                    </p>
+                    <p className="text-zinc-300 leading-relaxed mb-6 text-sm italic">&ldquo;{t.quote}&rdquo;</p>
                     <div>
                       <p className="text-white font-semibold text-sm">{t.name}</p>
                       <p className="text-zinc-500 text-xs">{t.role}</p>
@@ -784,32 +837,69 @@ const JobPeelLanding = () => {
           </section>
         </AnimatedSection>
 
-        {/* ─── CTA / Waitlist ────────────────────────── */}
+        {/* ─── Dual CTA ────────────────────────────── */}
         <AnimatedSection>
-          <section className="py-28 bg-zinc-900/30 relative overflow-hidden border-t border-white/5" id="waitlist">
-            {/* Glow orbs */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-orange-600/8 blur-[180px] -z-10 animate-glow-pulse" />
-            <div className="absolute top-20 right-20 w-[200px] h-[200px] rounded-full bg-orange-500/5 blur-[100px] -z-10" />
-
-            <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-              <motion.div variants={fadeUp} custom={0}>
-                <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-                  Ready to transform your career program?
-                </h2>
-                <p className="text-xl text-zinc-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-                  Join the career operating system that gives your students the leverage they deserve. Apply for the pilot today.
-                </p>
+          <section className="py-28 bg-zinc-900/30 relative overflow-hidden border-t border-white/5" id="cta">
+            <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-orange-600/8 blur-[160px] -z-10 animate-glow-pulse" />
+            <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-indigo-600/8 blur-[160px] -z-10 animate-glow-pulse" style={{ animationDelay: '2s' }} />
+            <div className="max-w-6xl mx-auto px-6 relative z-10">
+              <motion.div variants={fadeUp} custom={0} className="text-center mb-16">
+                <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Ready to get started?</h2>
+                <p className="text-xl text-zinc-400 max-w-2xl mx-auto">Pick the path that&apos;s right for you.</p>
               </motion.div>
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Individual CTA */}
+                <motion.div
+                  variants={fadeUp}
+                  custom={1}
+                  className="relative p-10 rounded-3xl bg-zinc-900/80 border border-white/[0.08] hover:border-orange-500/30 transition-all duration-500 group overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-orange-600/10 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-6">
+                      <User className="w-6 h-6 text-orange-500" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-3">For Job Seekers</h3>
+                    <p className="text-zinc-400 mb-8 leading-relaxed">
+                      Start for free today. No credit card required. Craft your first tailored cover letter in under 2 minutes.
+                    </p>
+                    <a
+                      href="/signup"
+                      className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-8 py-4 rounded-xl text-base font-bold transition-all duration-300 shadow-xl shadow-orange-600/20 group/btn w-full justify-center"
+                    >
+                      Create Free Account
+                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                    </a>
+                    <p className="text-center text-xs text-zinc-600 mt-4">Free forever · No credit card needed</p>
+                  </div>
+                </motion.div>
 
-              <motion.div
-                variants={fadeUp}
-                custom={1}
-                className="max-w-md mx-auto"
-              >
-                <div className="glass-card p-6 rounded-2xl glow-orange">
-                  <WaitlistForm />
-                </div>
-              </motion.div>
+                {/* Program CTA */}
+                <motion.div
+                  variants={fadeUp}
+                  custom={2}
+                  className="relative p-10 rounded-3xl bg-zinc-900/80 border border-white/[0.08] hover:border-indigo-500/30 transition-all duration-500 group overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-600/10 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-6">
+                      <Building2 className="w-6 h-6 text-indigo-400" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-3">For Career Programs</h3>
+                    <p className="text-zinc-400 mb-8 leading-relaxed">
+                      Get a custom demo and see how JobPeel can scale your program&apos;s outcomes. Setup is fast and we handle onboarding.
+                    </p>
+                    <a
+                      href="/request-demo"
+                      className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-xl text-base font-bold transition-all duration-300 group/btn w-full justify-center"
+                    >
+                      Get a Demo
+                      <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                    </a>
+                    <p className="text-center text-xs text-zinc-600 mt-4">Flexible pricing · Dedicated onboarding</p>
+                  </div>
+                </motion.div>
+              </div>
             </div>
           </section>
         </AnimatedSection>
@@ -817,32 +907,28 @@ const JobPeelLanding = () => {
       </main>
 
       {/* ─── Footer ──────────────────────────────────── */}
-      <footer className="border-t border-white/5 py-16 bg-zinc-950">
+      <footer className="border-t border-white/5 py-16 bg-zinc-950" >
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-4 gap-12 mb-12">
-            {/* Brand */}
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
                 <img src="/logos/jobpeel-logo-square.png" alt="JobPeel" className="w-8 h-8 rounded-lg" />
                 <span className="text-lg font-bold text-white">JobPeel</span>
               </div>
               <p className="text-zinc-500 text-sm leading-relaxed max-w-sm">
-                The AI-powered career operating system. Helping students present themselves clearly, confidently, and strategically at every stage of the hiring process.
+                The AI-powered career operating system. For individuals landing their next role and programs scaling outcomes.
               </p>
             </div>
-
-            {/* Links */}
             <div>
               <h4 className="text-sm font-bold text-zinc-300 mb-4 uppercase tracking-wider">Product</h4>
               <ul className="space-y-3">
-                {['Platform', 'For Schools', 'Pricing', 'Roadmap'].map((link) => (
+                {['How It Works', 'For Programs', 'Pricing', 'Roadmap'].map((link) => (
                   <li key={link}>
                     <a href="#" className="text-sm text-zinc-500 hover:text-orange-400 transition-colors">{link}</a>
                   </li>
                 ))}
               </ul>
             </div>
-
             <div>
               <h4 className="text-sm font-bold text-zinc-300 mb-4 uppercase tracking-wider">Company</h4>
               <ul className="space-y-3">
@@ -854,7 +940,6 @@ const JobPeelLanding = () => {
               </ul>
             </div>
           </div>
-
           <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-zinc-600 text-sm">© 2026 JobPeel Inc. All rights reserved.</p>
             <div className="flex items-center gap-4">
@@ -866,8 +951,8 @@ const JobPeelLanding = () => {
             </div>
           </div>
         </div>
-      </footer>
-    </div>
+      </footer >
+    </div >
   );
 };
 

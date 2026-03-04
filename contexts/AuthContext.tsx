@@ -76,60 +76,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const result = await signInWithPopup(auth, googleProvider);
             const user = result.user;
 
-            // 1. Check Waitlist Status
-            // Query jobpeel_waitlist for this email OR domain
-            const { collection, query, where, getDocs } = await import("firebase/firestore");
-            const waitlistRef = collection(db, "jobpeel_waitlist");
-
-            // A. Check Direct Email
-            const qEmail = query(waitlistRef, where("work_email", "==", user.email));
-            const snapEmail = await getDocs(qEmail);
-
-            let isApproved = false;
-            snapEmail.forEach((doc) => {
-                if (doc.data().status === "approved") isApproved = true;
-            });
-
-            // B. Check Domain (if not already approved)
-            if (!isApproved && user.email) {
-                const domain = user.email.split('@')[1];
-                if (domain) {
-                    const qDomain = query(waitlistRef, where("domains", "array-contains", domain));
-                    const snapDomain = await getDocs(qDomain);
-                    snapDomain.forEach((doc) => {
-                        if (doc.data().status === "approved") isApproved = true;
-                    });
-                }
-            }
-
-            // C. Check Admin Emails (if not already approved)
-            if (!isApproved && user.email) {
-                const qAdmin = query(waitlistRef, where("admin_emails", "array-contains", user.email));
-                const snapAdmin = await getDocs(qAdmin);
-                snapAdmin.forEach((doc) => {
-                    if (doc.data().status === "approved") isApproved = true;
-                });
-            }
-
-            if (!isApproved) {
-                await signOut(auth);
-                const { joinWaitlist } = await import("@/lib/waitlistService");
-
-                toast("JobPeel is limited to waitlisted users.", {
-                    description: "Would you like to be added to the waitlist?",
-                    duration: Infinity,
-                    action: {
-                        label: "Join Waitlist",
-                        onClick: () => joinWaitlist(user.email || "", user.displayName || "")
-                    },
-                    cancel: {
-                        label: "No Thanks",
-                        onClick: () => { }
-                    }
-                });
-                return;
-            }
-
             // 2. Check if user exists in DB, if not create basic profile
             const docRef = doc(db, "users", user.uid);
             const docSnap = await getDoc(docRef);
