@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ResumeUploader } from "@/components/ResumeUploader";
 import { JobScanner } from "@/components/JobScanner";
-import { FileText, Briefcase, ChevronRight, Wand2, Download, CheckCircle, Loader2 } from "lucide-react";
+import { FileText, Briefcase, ChevronRight, Wand2, Download, CheckCircle, Loader2, Lock, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,11 @@ import jsPDF from "jspdf";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardPage() {
-    const { user, userProfile } = useAuth();
+    const { user, userProfile, refreshGenerations } = useAuth();
+    const FREE_TIER_LIMIT = 10;
+    const generationsUsed = userProfile?.generationsUsed ?? 0;
+    const isUniversityUser = userProfile?.isUniversityUser ?? false;
+    const isLimitReached = !isUniversityUser && generationsUsed >= FREE_TIER_LIMIT;
     const [resumeText, setResumeText] = useState<string | null>(null);
     const [jobData, setJobData] = useState<any>(null);
     const [coverLetter, setCoverLetter] = useState<string>("");
@@ -66,14 +70,20 @@ export default function DashboardPage() {
             const res = await fetch("/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ resumeText, jobData, tone, userProfile }),
+                body: JSON.stringify({ resumeText, jobData, tone, userProfile, userId: user?.uid }),
                 signal: abortControllerRef.current.signal
             });
+
+            if (res.status === 403) {
+                toast.error("Generation limit reached", { description: "Upgrade to Pro for unlimited cover letters." });
+                return;
+            }
 
             if (!res.ok) throw new Error("Generation failed");
 
             const data = await res.json();
             setCoverLetter(data.coverLetter);
+            await refreshGenerations();
             toast.success("Cover Letter Generated!");
 
             // Track Application Generation → auto-add to Tracker
@@ -141,6 +151,26 @@ export default function DashboardPage() {
                     <p className="text-zinc-400">Create tailored cover letters and application assets in seconds.</p>
                 </div>
                 <div className="flex items-center gap-4">
+                    {/* Usage badge */}
+                    {!isUniversityUser && (
+                        <div className={cn(
+                            "hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border backdrop-blur-sm text-xs font-mono uppercase tracking-widest",
+                            isLimitReached
+                                ? "bg-red-900/30 border-red-500/30 text-red-400"
+                                : generationsUsed >= 7
+                                    ? "bg-orange-900/30 border-orange-500/30 text-orange-400"
+                                    : "bg-zinc-900/50 border-white/5 text-zinc-400"
+                        )}>
+                            {isLimitReached ? <Lock className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
+                            <span>{generationsUsed} / {FREE_TIER_LIMIT} generations</span>
+                        </div>
+                    )}
+                    {isUniversityUser && (
+                        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-900/30 border border-indigo-500/30 text-indigo-400 text-xs font-mono uppercase tracking-widest">
+                            <CheckCircle className="w-3 h-3" />
+                            <span>University Plan</span>
+                        </div>
+                    )}
                     <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
                         <div className={`w-2 h-2 rounded-full ${isGenerating ? "bg-orange-500 animate-pulse" : "bg-green-500"}`} />
                         <span className="text-xs font-mono text-zinc-400 uppercase tracking-widest">
@@ -292,30 +322,51 @@ export default function DashboardPage() {
                             ))}
                         </div>
 
-                        <button
-                            onClick={handleGenerate}
-                            disabled={isGenerating}
-                            className={cn(
-                                "w-full h-14 rounded-xl font-bold text-base text-white shadow-xl flex items-center justify-center gap-3 transition-all duration-300 relative overflow-hidden group border border-white/10",
-                                isGenerating
-                                    ? "bg-zinc-800 cursor-wait"
-                                    : "bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 hover:shadow-orange-900/20 hover:scale-[1.02] active:scale-[0.98]"
-                            )}
-                        >
-                            {isGenerating ? (
-                                <div className="flex items-center gap-2">
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span className="font-mono text-sm">PROCESSING...</span>
+                        {isLimitReached ? (
+                            <div className="w-full rounded-xl overflow-hidden border border-red-500/20">
+                                <div className="bg-gradient-to-br from-red-950/50 to-zinc-900/50 p-5 flex flex-col items-center gap-3 text-center">
+                                    <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                                        <Lock className="w-5 h-5 text-red-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-white">Free limit reached</p>
+                                        <p className="text-xs text-zinc-500 mt-0.5">You've used all {FREE_TIER_LIMIT} free generations.</p>
+                                    </div>
+                                    <a
+                                        href="mailto:hello@jobpeel.co?subject=JobPeel Pro Upgrade"
+                                        className="w-full py-2.5 rounded-lg bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Zap className="w-3.5 h-3.5" />
+                                        Upgrade to Pro
+                                    </a>
                                 </div>
-                            ) : (
-                                <>
-                                    <span>GENERATE APPLICATION</span>
-                                    <Wand2 className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                                </>
-                            )}
-                        </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={handleGenerate}
+                                disabled={isGenerating}
+                                className={cn(
+                                    "w-full h-14 rounded-xl font-bold text-base text-white shadow-xl flex items-center justify-center gap-3 transition-all duration-300 relative overflow-hidden group border border-white/10",
+                                    isGenerating
+                                        ? "bg-zinc-800 cursor-wait"
+                                        : "bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 hover:shadow-orange-900/20 hover:scale-[1.02] active:scale-[0.98]"
+                                )}
+                            >
+                                {isGenerating ? (
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        <span className="font-mono text-sm">PROCESSING...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <span>GENERATE APPLICATION</span>
+                                        <Wand2 className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                                    </>
+                                )}
+                            </button>
+                        )}
 
-                        {(!resumeText || !jobData) && (
+                        {(!resumeText || !jobData) && !isLimitReached && (
                             <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/20 backdrop-blur-[2px] z-20">
                                 <div className="bg-zinc-900 border border-white/10 px-4 py-2 rounded-full flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400 shadow-xl">
                                     <Briefcase className="w-3 h-3 text-orange-500" />

@@ -162,9 +162,30 @@ export default function DashboardLayout({
                                 <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
                             </div>
                         </div>
-                        <button className="w-full py-1.5 text-xs font-medium bg-white/5 hover:bg-white/10 text-zinc-300 rounded-lg transition-colors border border-white/5">
-                            Upgrade to Pro
-                        </button>
+                        {userProfile?.isUniversityUser ? (
+                            <div className="w-full py-1.5 text-xs font-medium bg-indigo-500/10 text-indigo-400 rounded-lg text-center border border-indigo-500/20">
+                                University Plan ✓
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex justify-between text-[10px] font-mono text-zinc-500 mb-1">
+                                    <span>Free tier</span>
+                                    <span>{userProfile?.generationsUsed ?? 0} / 10 used</span>
+                                </div>
+                                <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden mb-3">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-orange-600 to-red-600 rounded-full transition-all"
+                                        style={{ width: `${Math.min(((userProfile?.generationsUsed ?? 0) / 10) * 100, 100)}%` }}
+                                    />
+                                </div>
+                                <a
+                                    href="mailto:hello@jobpeel.co?subject=JobPeel Pro Upgrade"
+                                    className="block w-full py-1.5 text-xs font-medium bg-gradient-to-r from-orange-600/20 to-red-600/20 hover:from-orange-600/30 hover:to-red-600/30 text-orange-400 rounded-lg transition-colors border border-orange-500/20 text-center"
+                                >
+                                    Upgrade to Pro
+                                </a>
+                            </>
+                        )}
                     </div>
                 </div>
             </aside>

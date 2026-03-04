@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import {
     onAuthStateChanged,
     signInWithPopup,
@@ -9,7 +9,7 @@ import {
     GoogleAuthProvider
 } from "firebase/auth";
 import { auth, googleProvider, db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -21,6 +21,8 @@ export interface UserProfile {
     photoURL?: string;
     bio?: string;
     title?: string;
+    generationsUsed?: number;
+    isUniversityUser?: boolean;
 }
 
 interface AuthContextType {
@@ -30,6 +32,7 @@ interface AuthContextType {
     signInWithGoogle: () => Promise<void>;
     logout: () => Promise<void>;
     updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
+    refreshGenerations: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -40,53 +43,99 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            setUser(user);
-            if (user) {
-                // Fetch user profile from Firestore
-                try {
-                    const docRef = doc(db, "users", user.uid);
-                    const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        setUserProfile(docSnap.data() as UserProfile);
-                    } else {
-                        // Init profile from Auth data if not in DB
-                        const newProfile = {
-                            email: user.email || "",
-                            photoURL: user.photoURL || "",
-                            firstName: user.displayName?.split(" ")[0] || "",
-                            lastName: user.displayName?.split(" ").slice(1).join(" ") || ""
-                        };
-                        setUserProfile(newProfile);
-                    }
-                } catch (error) {
-                    console.error("Error fetching user profile:", error);
+    // Check if an email belongs to an approved university domain
+    const checkUniversityStatus = async (email: string): Promise<boolean> => {
+        try {
+            const waitlistRef = collection(db, "jobpeel_waitlist");
+            const snap = await getDocs(waitlistRef);
+            for (const docSnap of snap.docs) {
+                const data = docSnap.data();
+                const domains: string[] = data.domains || [];
+                if (domains.some((d: string) => email.toLowerCase().endsWith("@" + d.toLowerCase()))) {
+                    return true;
                 }
+            }
+        } catch (e) {
+            console.error("University check error:", e);
+        }
+        return false;
+    };
+
+    const loadUserProfile = useCallback(async (firebaseUser: User) => {
+        try {
+            const docRef = doc(db, "users", firebaseUser.uid);
+            const docSnap = await getDoc(docRef);
+            const email = firebaseUser.email || "";
+
+            const isUniversityUser = await checkUniversityStatus(email);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setUserProfile({
+                    ...data as UserProfile,
+                    generationsUsed: data.generationsUsed ?? 0,
+                    isUniversityUser,
+                });
+            } else {
+                const newProfile: UserProfile = {
+                    email,
+                    photoURL: firebaseUser.photoURL || "",
+                    firstName: firebaseUser.displayName?.split(" ")[0] || "",
+                    lastName: firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
+                    generationsUsed: 0,
+                    isUniversityUser,
+                };
+                setUserProfile(newProfile);
+            }
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+        }
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            setUser(firebaseUser);
+            if (firebaseUser) {
+                await loadUserProfile(firebaseUser);
             } else {
                 setUserProfile(null);
             }
             setLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [loadUserProfile]);
+
+    // Call this after a successful generation to update the count in context
+    const refreshGenerations = useCallback(async () => {
+        if (!user) return;
+        try {
+            const docRef = doc(db, "users", user.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setUserProfile(prev => prev ? { ...prev, generationsUsed: data.generationsUsed ?? 0 } : prev);
+            }
+        } catch (e) {
+            console.error("Error refreshing generations:", e);
+        }
+    }, [user]);
 
     const signInWithGoogle = async () => {
         try {
             const result = await signInWithPopup(auth, googleProvider);
-            const user = result.user;
+            const firebaseUser = result.user;
 
-            // 2. Check if user exists in DB, if not create basic profile
-            const docRef = doc(db, "users", user.uid);
+            const docRef = doc(db, "users", firebaseUser.uid);
             const docSnap = await getDoc(docRef);
 
             if (!docSnap.exists()) {
                 await setDoc(docRef, {
-                    email: user.email,
-                    photoURL: user.photoURL,
-                    firstName: user.displayName?.split(" ")[0] || "",
-                    lastName: user.displayName?.split(" ").slice(1).join(" ") || "",
-                    createdAt: new Date().toISOString()
+                    email: firebaseUser.email,
+                    photoURL: firebaseUser.photoURL,
+                    firstName: firebaseUser.displayName?.split(" ")[0] || "",
+                    lastName: firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
+                    createdAt: new Date().toISOString(),
+                    generationsUsed: 0,
                 });
             }
 
@@ -94,7 +143,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             router.push("/dashboard");
         } catch (error: any) {
             console.error(error);
-            // Ensure we don't leave a session if it failed logic (already handled by signOut above for approval, but good specific catch)
             toast.error("Login Restricted", {
                 description: error.message
             });
@@ -127,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, userProfile, loading, signInWithGoogle, logout, updateUserProfile }}>
+        <AuthContext.Provider value={{ user, userProfile, loading, signInWithGoogle, logout, updateUserProfile, refreshGenerations }}>
             {children}
         </AuthContext.Provider>
     );

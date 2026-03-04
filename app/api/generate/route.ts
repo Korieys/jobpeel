@@ -1,14 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, collection, getDocs, updateDoc, increment } from "firebase/firestore";
+
+const FREE_TIER_LIMIT = 10;
+
+async function isUniversityUser(email: string): Promise<boolean> {
+    try {
+        const waitlistRef = collection(db, "jobpeel_waitlist");
+        const snap = await getDocs(waitlistRef);
+        for (const docSnap of snap.docs) {
+            const data = docSnap.data();
+            const domains: string[] = data.domains || [];
+            if (domains.some((d: string) => email.toLowerCase().endsWith("@" + d.toLowerCase()))) {
+                return true;
+            }
+        }
+    } catch (e) {
+        console.error("University check error:", e);
+    }
+    return false;
+}
 
 export async function POST(req: NextRequest) {
     try {
-        const { resumeText, jobData, tone = "professional", userProfile } = await req.json();
+        const { resumeText, jobData, tone = "professional", userProfile, userId } = await req.json();
 
         if (!resumeText || !jobData) {
             return NextResponse.json({ error: "Missing resume or job data" }, { status: 400 });
         }
 
+        // --- Paywall Check ---
+        if (userId) {
+            const userRef = doc(db, "users", userId);
+            const userSnap = await getDoc(userRef);
+            const userData = userSnap.exists() ? userSnap.data() : {};
+            const email: string = userData.email || userProfile?.email || "";
+            const generationsUsed: number = userData.generationsUsed ?? 0;
+
+            // Check if university user (unlimited access)
+            const isUni = await isUniversityUser(email);
+
+            if (!isUni && generationsUsed >= FREE_TIER_LIMIT) {
+                return NextResponse.json(
+                    { error: "limit_reached", generationsUsed, limit: FREE_TIER_LIMIT },
+                    { status: 403 }
+                );
+            }
+        }
+
+        // --- Build prompt ---
         const contactInfo = userProfile ? `
         CANDIDATE CONTACT INFO (PRIORITIZE THIS OVER RESUME):
         Name: ${userProfile.firstName} ${userProfile.lastName}
@@ -60,19 +101,35 @@ export async function POST(req: NextRequest) {
                 { role: "system", content: "You are a master copywriter who writes in a punchy, direct, and overwhelmingly human voice. You despise generic corporate speak, AI-sounding vocabulary, and fluff." },
                 { role: "user", content: prompt },
             ],
-            temperature: 0.7, // Lowered slightly to enforce stricter adherence to strict rules and facts
-
+            temperature: 0.7,
         });
 
         let coverLetter = completion.choices[0].message.content || "";
 
-        // Cleanup: Aggressively Strip markdown code fences AND bolding/formatting
+        // Cleanup markdown artifacts
         coverLetter = coverLetter
             .replace(/```markdown/g, "")
             .replace(/```/g, "")
-            .replace(/\*\*/g, "") // Remove bolding
-            .replace(/#{1,6}\s/g, "") // Remove headers
+            .replace(/\*\*/g, "")
+            .replace(/#{1,6}\s/g, "")
             .trim();
+
+        // --- Increment counter on success ---
+        if (userId) {
+            try {
+                const userRef = doc(db, "users", userId);
+                const userSnap = await getDoc(userRef);
+                const userData = userSnap.exists() ? userSnap.data() : {};
+                const email: string = userData.email || userProfile?.email || "";
+                const isUni = await isUniversityUser(email);
+
+                if (!isUni) {
+                    await updateDoc(userRef, { generationsUsed: increment(1) });
+                }
+            } catch (e) {
+                console.error("Failed to increment generation count:", e);
+            }
+        }
 
         return NextResponse.json({ coverLetter });
     } catch (error) {
