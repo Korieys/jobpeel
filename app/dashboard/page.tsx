@@ -333,7 +333,7 @@ export default function DashboardPage() {
                                         <p className="text-xs text-zinc-500 mt-0.5">You've used all {FREE_TIER_LIMIT} free generations.</p>
                                     </div>
                                     <a
-                                        href="mailto:hello@jobpeel.co?subject=JobPeel Pro Upgrade"
+                                        href="/dashboard/upgrade"
                                         className="w-full py-2.5 rounded-lg bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                                     >
                                         <Zap className="w-3.5 h-3.5" />

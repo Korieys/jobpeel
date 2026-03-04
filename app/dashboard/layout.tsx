@@ -13,7 +13,8 @@ import {
     X,
     Plus,
     ShieldCheck,
-    ClipboardList
+    ClipboardList,
+    Crown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
@@ -75,6 +76,7 @@ export default function DashboardLayout({
         { name: "Optimizer", href: "/dashboard/resume-optimizer", icon: Zap },
         { name: "Interview Prep", href: "/dashboard/interview-prep", icon: MessageSquare },
         { name: "Tracker", href: "/dashboard/tracker", icon: ClipboardList },
+        ...(!userProfile?.isUniversityUser ? [{ name: "Upgrade", href: "/dashboard/upgrade", icon: Crown }] : []),
     ];
 
     const NavItem = ({ item }: { item: any }) => {
@@ -179,7 +181,7 @@ export default function DashboardLayout({
                                     />
                                 </div>
                                 <a
-                                    href="mailto:hello@jobpeel.co?subject=JobPeel Pro Upgrade"
+                                    href="/dashboard/upgrade"
                                     className="block w-full py-1.5 text-xs font-medium bg-gradient-to-r from-orange-600/20 to-red-600/20 hover:from-orange-600/30 hover:to-red-600/30 text-orange-400 rounded-lg transition-colors border border-orange-500/20 text-center"
                                 >
                                     Upgrade to Pro
