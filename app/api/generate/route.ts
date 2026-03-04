@@ -37,11 +37,13 @@ export async function POST(req: NextRequest) {
             const userData = userSnap.exists() ? userSnap.data() : {};
             const email: string = userData.email || userProfile?.email || "";
             const generationsUsed: number = userData.generationsUsed ?? 0;
+            const plan: string = userData.plan || "free";
 
-            // Check if university user (unlimited access)
+            // Paid subscribers (standard/pro) and university users get unlimited access
             const isUni = await isUniversityUser(email);
+            const isPaidPlan = plan === "standard" || plan === "pro";
 
-            if (!isUni && generationsUsed >= FREE_TIER_LIMIT) {
+            if (!isUni && !isPaidPlan && generationsUsed >= FREE_TIER_LIMIT) {
                 return NextResponse.json(
                     { error: "limit_reached", generationsUsed, limit: FREE_TIER_LIMIT },
                     { status: 403 }
