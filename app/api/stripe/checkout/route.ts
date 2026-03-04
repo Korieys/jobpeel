@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: "2025-01-27.acacia",
+    apiVersion: "2026-02-25.clover",
 });
 
 // Price IDs per tier and billing period
 const PRICE_IDS: Record<string, { monthly: string; annual: string }> = {
     standard: {
-        monthly: "price_1T7CeQCYf2eRPS4dHEgYhJ2W",
-        annual: "price_1T7CeQCYf2eRPS4dHEgYhJ2W", // Update with annual price ID when available
+        monthly: "price_1T7CdxCYf2eRPS4dT667THqn",
+        annual: "price_1T7CdxCYf2eRPS4dT667THqn", // Update with annual price ID when available
     },
     pro: {
         monthly: "price_1T7CeQCYf2eRPS4dHEgYhJ2W",

@@ -34,7 +34,7 @@ const TIERS = [
     {
         id: "standard",
         name: "Standard",
-        price: { monthly: 9, annual: 7 },
+        price: { monthly: 12, annual: 9 },
         description: "Everything you need to run an active job search.",
         icon: Shield,
         color: "orange",
@@ -54,7 +54,7 @@ const TIERS = [
     {
         id: "pro",
         name: "Pro",
-        price: { monthly: 19, annual: 14 },
+        price: { monthly: 20, annual: 15 },
         description: "Maximum power for serious job seekers.",
         icon: Crown,
         color: "gold",
