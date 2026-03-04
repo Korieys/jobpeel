@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
-    Zap, CheckCircle, Crown, Sparkles, Building2, Lock, ArrowRight, Star
+    Zap, CheckCircle, Crown, Sparkles, Building2, Lock, ArrowRight, Star, Shield
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 
 const FREE_TIER_LIMIT = 10;
 
@@ -16,7 +17,7 @@ const TIERS = [
         id: "free",
         name: "Free",
         price: { monthly: 0, annual: 0 },
-        description: "Get started and see what JobPeel can do.",
+        description: "Get started and explore the platform.",
         icon: Zap,
         color: "zinc",
         features: [
@@ -31,21 +32,41 @@ const TIERS = [
         highlight: false,
     },
     {
-        id: "pro",
-        name: "Pro",
-        price: { monthly: 12, annual: 9 },
-        description: "Unlimited generation power for active job seekers.",
-        icon: Crown,
+        id: "standard",
+        name: "Standard",
+        price: { monthly: 9, annual: 7 },
+        description: "Everything you need to run an active job search.",
+        icon: Shield,
         color: "orange",
         features: [
             "Unlimited cover letter generations",
+            "Job scanner (URL + paste)",
+            "Resume upload & parsing",
+            "Interview prep",
+            "Application tracker",
+            "Email support",
+        ],
+        cta: "Get Standard",
+        ctaDisabled: false,
+        highlight: false,
+        badge: null,
+    },
+    {
+        id: "pro",
+        name: "Pro",
+        price: { monthly: 19, annual: 14 },
+        description: "Maximum power for serious job seekers.",
+        icon: Crown,
+        color: "gold",
+        features: [
+            "Everything in Standard",
             "Priority AI processing",
             "Advanced tone & style controls",
-            "Resume optimizer (coming soon)",
+            "Resume optimizer",
             "Custom templates (coming soon)",
             "Priority support",
         ],
-        cta: "Upgrade to Pro",
+        cta: "Get Pro",
         ctaDisabled: false,
         highlight: true,
         badge: "Most Popular",
@@ -54,7 +75,7 @@ const TIERS = [
         id: "university",
         name: "University",
         price: { monthly: null, annual: null },
-        description: "Bulk access for career centers and academic programs.",
+        description: "Bulk access for career centers & programs.",
         icon: Building2,
         color: "indigo",
         features: [
@@ -63,7 +84,6 @@ const TIERS = [
             "Career center admin dashboard",
             "Analytics & reporting",
             "Dedicated onboarding",
-            "Custom branding (coming soon)",
         ],
         cta: "Contact Us",
         ctaDisabled: false,
@@ -72,7 +92,7 @@ const TIERS = [
 ];
 
 const COLOR_MAP: Record<string, {
-    badge: string; border: string; icon: string; cta: string; glow: string; ring: string;
+    badge: string; border: string; icon: string; cta: string; glow: string; ring: string; check: string;
 }> = {
     zinc: {
         badge: "bg-zinc-800 text-zinc-400 border-zinc-700",
@@ -81,14 +101,25 @@ const COLOR_MAP: Record<string, {
         cta: "bg-zinc-800 text-zinc-400 cursor-not-allowed",
         glow: "",
         ring: "",
+        check: "text-zinc-600",
     },
     orange: {
         badge: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-        border: "border-orange-500/30",
+        border: "border-orange-500/20",
         icon: "text-orange-400 bg-orange-500/10 border-orange-500/20",
-        cta: "bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white",
-        glow: "shadow-[0_0_40px_-10px_rgba(249,115,22,0.3)]",
-        ring: "ring-1 ring-orange-500/20",
+        cta: "bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white",
+        glow: "shadow-[0_0_30px_-8px_rgba(249,115,22,0.25)]",
+        ring: "ring-1 ring-orange-500/10",
+        check: "text-orange-400",
+    },
+    gold: {
+        badge: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+        border: "border-yellow-500/30",
+        icon: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+        cta: "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-zinc-950",
+        glow: "shadow-[0_0_40px_-10px_rgba(234,179,8,0.3)]",
+        ring: "ring-1 ring-yellow-500/20",
+        check: "text-yellow-400",
     },
     indigo: {
         badge: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
@@ -97,17 +128,33 @@ const COLOR_MAP: Record<string, {
         cta: "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white",
         glow: "",
         ring: "",
+        check: "text-indigo-400",
     },
 };
 
-export default function UpgradePage() {
+function UpgradePageInner() {
     const { user, userProfile } = useAuth();
+    const searchParams = useSearchParams();
     const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
     const [loadingTier, setLoadingTier] = useState<string | null>(null);
 
     const generationsUsed = userProfile?.generationsUsed ?? 0;
     const isUniversityUser = userProfile?.isUniversityUser ?? false;
     const currentPlan = isUniversityUser ? "university" : "free";
+
+    // Handle Stripe redirect results
+    useEffect(() => {
+        const success = searchParams.get("success");
+        const cancelled = searchParams.get("cancelled");
+        const tier = searchParams.get("tier");
+        if (success === "true") {
+            toast.success(`${tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : ""} plan activated!`, {
+                description: "Your subscription is now active. Enjoy unlimited generations!"
+            });
+        } else if (cancelled === "true") {
+            toast.info("Checkout cancelled", { description: "No charges were made." });
+        }
+    }, [searchParams]);
 
     const handleUpgrade = async (tierId: string) => {
         if (tierId === "free") return;
@@ -118,7 +165,6 @@ export default function UpgradePage() {
 
         setLoadingTier(tierId);
         try {
-            // Stripe checkout session will be created here once keys are provided
             const res = await fetch("/api/stripe/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -130,11 +176,15 @@ export default function UpgradePage() {
                 }),
             });
 
-            if (!res.ok) throw new Error("Checkout failed");
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Checkout failed");
+            }
+
             const { url } = await res.json();
             window.location.href = url;
-        } catch (e) {
-            toast.error("Checkout unavailable", { description: "Stripe is not yet configured. Please try again soon." });
+        } catch (e: any) {
+            toast.error("Checkout failed", { description: e.message || "Please try again." });
         } finally {
             setLoadingTier(null);
         }
@@ -154,7 +204,7 @@ export default function UpgradePage() {
                     Supercharge your job search
                 </h1>
                 <p className="text-zinc-400 text-base">
-                    Generate unlimited cover letters, land more interviews, and track every application — all in one place.
+                    Unlimited cover letters, smarter applications, and more interviews — starting today.
                 </p>
             </header>
 
@@ -179,7 +229,7 @@ export default function UpgradePage() {
                 </span>
             </div>
 
-            {/* Usage Notice for free B2C users */}
+            {/* Usage Notice */}
             {!isUniversityUser && (
                 <motion.div
                     initial={{ opacity: 0, y: -8 }}
@@ -214,7 +264,7 @@ export default function UpgradePage() {
             )}
 
             {/* Pricing Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 max-w-6xl mx-auto">
                 {TIERS.map((tier, i) => {
                     const colors = COLOR_MAP[tier.color];
                     const isCurrentPlan = tier.id === currentPlan;
@@ -227,9 +277,9 @@ export default function UpgradePage() {
                             key={tier.id}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.08 }}
+                            transition={{ delay: i * 0.07 }}
                             className={cn(
-                                "relative flex flex-col bg-zinc-900/50 border rounded-2xl p-6 transition-all duration-300 hover:translate-y-[-2px]",
+                                "relative flex flex-col bg-zinc-900/50 border rounded-2xl p-5 transition-all duration-300 hover:translate-y-[-2px]",
                                 colors.border,
                                 colors.glow,
                                 colors.ring,
@@ -246,38 +296,38 @@ export default function UpgradePage() {
                             )}
 
                             {/* Icon + Name */}
-                            <div className="flex items-center gap-3 mb-5">
-                                <div className={cn("p-2.5 rounded-xl border", colors.icon)}>
-                                    <Icon className="w-5 h-5" />
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className={cn("p-2 rounded-xl border", colors.icon)}>
+                                    <Icon className="w-4 h-4" />
                                 </div>
                                 <div>
-                                    <p className="font-bold text-white text-base">{tier.name}</p>
-                                    <p className="text-xs text-zinc-500">{tier.description}</p>
+                                    <p className="font-bold text-white text-sm">{tier.name}</p>
+                                    <p className="text-[11px] text-zinc-500 leading-tight">{tier.description}</p>
                                 </div>
                             </div>
 
                             {/* Price */}
-                            <div className="mb-6">
+                            <div className="mb-5">
                                 {price === null ? (
-                                    <p className="text-2xl font-bold text-white">Custom pricing</p>
+                                    <p className="text-2xl font-bold text-white">Custom</p>
                                 ) : price === 0 ? (
-                                    <p className="text-4xl font-bold text-white">Free</p>
+                                    <p className="text-3xl font-bold text-white">Free</p>
                                 ) : (
                                     <div className="flex items-end gap-1">
-                                        <span className="text-4xl font-bold text-white">${price}</span>
-                                        <span className="text-zinc-500 text-sm mb-1.5">/month</span>
+                                        <span className="text-3xl font-bold text-white">${price}</span>
+                                        <span className="text-zinc-500 text-sm mb-1">/mo</span>
                                     </div>
                                 )}
                                 {billing === "annual" && price !== null && price > 0 && (
-                                    <p className="text-xs text-green-400 mt-1">Billed ${price * 12}/year</p>
+                                    <p className="text-[11px] text-green-400 mt-0.5">Billed ${price * 12}/year</p>
                                 )}
                             </div>
 
                             {/* Features */}
-                            <ul className="space-y-2.5 flex-1 mb-6">
+                            <ul className="space-y-2 flex-1 mb-5">
                                 {tier.features.map((feat) => (
-                                    <li key={feat} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                                        <CheckCircle className={cn("w-4 h-4 mt-0.5 shrink-0", tier.color === "orange" ? "text-orange-400" : tier.color === "indigo" ? "text-indigo-400" : "text-zinc-600")} />
+                                    <li key={feat} className="flex items-start gap-2 text-xs text-zinc-300">
+                                        <CheckCircle className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", colors.check)} />
                                         {feat}
                                     </li>
                                 ))}
@@ -285,7 +335,7 @@ export default function UpgradePage() {
 
                             {/* CTA */}
                             {isCurrentPlan ? (
-                                <div className="w-full py-2.5 text-center text-xs font-bold uppercase tracking-widest rounded-xl bg-white/5 text-zinc-500 border border-white/5">
+                                <div className="w-full py-2 text-center text-[11px] font-bold uppercase tracking-widest rounded-xl bg-white/5 text-zinc-500 border border-white/5">
                                     Current Plan
                                 </div>
                             ) : (
@@ -293,7 +343,7 @@ export default function UpgradePage() {
                                     onClick={() => handleUpgrade(tier.id)}
                                     disabled={tier.ctaDisabled || isLoading}
                                     className={cn(
-                                        "w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                                        "w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2",
                                         colors.cta,
                                         isLoading && "opacity-70 cursor-wait"
                                     )}
@@ -303,7 +353,7 @@ export default function UpgradePage() {
                                     ) : (
                                         <>
                                             {tier.cta}
-                                            <ArrowRight className="w-3.5 h-3.5" />
+                                            <ArrowRight className="w-3 h-3" />
                                         </>
                                     )}
                                 </button>
@@ -313,10 +363,18 @@ export default function UpgradePage() {
                 })}
             </div>
 
-            {/* FAQ / Trust Line */}
-            <p className="text-center text-xs text-zinc-600 mt-6">
+            {/* Trust Line */}
+            <p className="text-center text-xs text-zinc-600 pb-4">
                 Secure payments via Stripe · Cancel anytime · No hidden fees
             </p>
         </div>
+    );
+}
+
+export default function UpgradePage() {
+    return (
+        <Suspense>
+            <UpgradePageInner />
+        </Suspense>
     );
 }
