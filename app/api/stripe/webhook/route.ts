@@ -14,8 +14,10 @@ export const config = {
 
 // Map Stripe price IDs → plan names
 const PRICE_TO_PLAN: Record<string, string> = {
-    "price_1T7CdxCYf2eRPS4dT667THqn": "standard",
-    "price_1T7CeQCYf2eRPS4dHEgYhJ2W": "pro",
+    "price_1T7CdxCYf2eRPS4dT667THqn": "standard", // Monthly
+    "price_1T7tRXCYf2eRPS4dhyW9h52r": "standard", // Annual
+    "price_1T7CeQCYf2eRPS4dHEgYhJ2W": "pro",      // Monthly
+    "price_1T7tSBCYf2eRPS4dFcw63zkK": "pro",      // Annual
 };
 
 async function findUserByStripeCustomer(customerId: string): Promise<string | null> {

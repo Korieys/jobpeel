@@ -9,11 +9,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const PRICE_IDS: Record<string, { monthly: string; annual: string }> = {
     standard: {
         monthly: "price_1T7CdxCYf2eRPS4dT667THqn",
-        annual: "price_1T7CdxCYf2eRPS4dT667THqn", // Update with annual price ID when available
+        annual: "price_1T7tRXCYf2eRPS4dhyW9h52r",
     },
     pro: {
         monthly: "price_1T7CeQCYf2eRPS4dHEgYhJ2W",
-        annual: "price_1T7CeQCYf2eRPS4dHEgYhJ2W", // Update with annual price ID when available
+        annual: "price_1T7tSBCYf2eRPS4dFcw63zkK",
     },
 };
 
