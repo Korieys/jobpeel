@@ -23,6 +23,7 @@ export interface UserProfile {
     title?: string;
     generationsUsed?: number;
     isUniversityUser?: boolean;
+    isSuperAdmin?: boolean;
 }
 
 interface AuthContextType {
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     ...data as UserProfile,
                     generationsUsed: data.generationsUsed ?? 0,
                     isUniversityUser,
+                    isSuperAdmin: !!data.isSuperAdmin,
                 });
             } else {
                 const newProfile: UserProfile = {
@@ -84,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     lastName: firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
                     generationsUsed: 0,
                     isUniversityUser,
+                    isSuperAdmin: false,
                 };
                 setUserProfile(newProfile);
             }

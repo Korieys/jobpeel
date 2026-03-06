@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
+import { ContactModal } from "@/components/ContactModal";
 
 const FREE_TIER_LIMIT = 10;
 
@@ -137,6 +138,8 @@ function UpgradePageInner() {
     const searchParams = useSearchParams();
     const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
     const [loadingTier, setLoadingTier] = useState<string | null>(null);
+    const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+    const hasToastedRef = useRef(false);
 
     const generationsUsed = userProfile?.generationsUsed ?? 0;
     const isUniversityUser = userProfile?.isUniversityUser ?? false;
@@ -144,11 +147,14 @@ function UpgradePageInner() {
 
     // Handle Stripe redirect results
     useEffect(() => {
+        if (hasToastedRef.current) return;
+
         const success = searchParams.get("success");
         const cancelled = searchParams.get("cancelled");
         const tier = searchParams.get("tier");
 
         if (success === "true" || cancelled === "true") {
+            hasToastedRef.current = true;
             if (success === "true") {
                 toast.success(`${tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : ""} plan activated!`, {
                     description: "Your subscription is now active. Enjoy unlimited generations!"
@@ -165,7 +171,7 @@ function UpgradePageInner() {
     const handleUpgrade = async (tierId: string) => {
         if (tierId === "free") return;
         if (tierId === "university") {
-            window.location.href = "mailto:hello@jobpeel.co?subject=University Plan Inquiry";
+            setIsContactModalOpen(true);
             return;
         }
 
@@ -373,6 +379,11 @@ function UpgradePageInner() {
             <p className="text-center text-xs text-zinc-600 pb-4">
                 Secure payments via Stripe · Cancel anytime · No hidden fees
             </p>
+
+            <ContactModal
+                isOpen={isContactModalOpen}
+                onClose={() => setIsContactModalOpen(false)}
+            />
         </div>
     );
 }

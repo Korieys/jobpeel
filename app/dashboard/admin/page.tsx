@@ -2,12 +2,12 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import {
     Loader2, ShieldCheck, Users, TrendingUp, Search, Mail, FileText,
     BarChart3, Download, ChevronDown, ChevronRight, X, Briefcase,
     Target, Clock, Sparkles, BookOpen, ArrowUpRight, ArrowDownRight,
-    Eye, MessageSquare,
+    Eye, MessageSquare, Check, Inbox, Building2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -45,7 +45,26 @@ interface ProgramStats {
     activeThisWeek: number;
 }
 
-type TabId = "overview" | "students" | "reports";
+interface ContactMessage {
+    id: string;
+    userId: string;
+    email: string;
+    name: string;
+    message: string;
+
+    // Expanded fields
+    institutionName?: string;
+    jobTitle?: string;
+    phone?: string;
+    programType?: string;
+    studentRange?: string;
+    website?: string;
+
+    status: string;
+    createdAt: string;
+}
+
+type TabId = "overview" | "students" | "messages" | "reports";
 
 export default function AdminDashboard() {
     const { user, loading } = useAuth();
@@ -53,6 +72,7 @@ export default function AdminDashboard() {
     const [stats, setStats] = useState<ProgramStats | null>(null);
     const [students, setStudents] = useState<Student[]>([]);
     const [applications, setApplications] = useState<AppRecord[]>([]);
+    const [messages, setMessages] = useState<ContactMessage[]>([]);
     const [pageLoading, setPageLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState<TabId>("overview");
@@ -147,6 +167,32 @@ export default function AdminDashboard() {
 
             matchedStudents.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
+            // Fetch Contact Messages
+            const messagesRef = collection(db, "contact_messages");
+            const messagesSnap = await getDocs(messagesRef);
+            const allMessages: ContactMessage[] = [];
+            messagesSnap.forEach((doc) => {
+                const data = doc.data();
+                if (studentUserIds.has(data.userId)) {
+                    allMessages.push({
+                        id: doc.id,
+                        userId: data.userId,
+                        email: data.email,
+                        name: data.name,
+                        message: data.message,
+                        institutionName: data.institutionName,
+                        jobTitle: data.jobTitle,
+                        phone: data.phone,
+                        programType: data.programType,
+                        studentRange: data.studentRange,
+                        website: data.website,
+                        status: data.status || "unread",
+                        createdAt: data.createdAt,
+                    });
+                }
+            });
+            allMessages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
             setStats({
                 programName,
                 totalStudents: matchedStudents.length,
@@ -159,11 +205,28 @@ export default function AdminDashboard() {
             });
             setStudents(matchedStudents);
             setApplications(allApps);
+            setMessages(allMessages);
         } catch (error) {
             console.error("Admin stats error:", error);
             toast.error("Failed to load admin stats");
         } finally {
             setPageLoading(false);
+        }
+    };
+
+    const toggleMessageStatus = async (messageId: string, currentStatus: string) => {
+        try {
+            const newStatus = currentStatus === "unread" ? "read" : "unread";
+            const msgRef = doc(db, "contact_messages", messageId);
+            await updateDoc(msgRef, { status: newStatus });
+
+            setMessages(messages.map(m =>
+                m.id === messageId ? { ...m, status: newStatus } : m
+            ));
+            toast.success(`Message marked as ${newStatus}`);
+        } catch (error) {
+            console.error("Error updating message status:", error);
+            toast.error("Failed to update message status");
         }
     };
 
@@ -255,9 +318,10 @@ export default function AdminDashboard() {
 
     if (!stats) return null;
 
-    const TABS: { id: TabId; label: string; icon: any }[] = [
+    const TABS: { id: TabId; label: string; icon: any; count?: number }[] = [
         { id: "overview", label: "Overview", icon: BarChart3 },
         { id: "students", label: "Students", icon: Users },
+        { id: "messages", label: "Messages", icon: Inbox, count: messages.filter(m => m.status === 'unread').length },
         { id: "reports", label: "Reports", icon: Download },
     ];
 
@@ -293,6 +357,11 @@ export default function AdminDashboard() {
                     >
                         <tab.icon className="w-4 h-4" />
                         {tab.label}
+                        {tab.count !== undefined && tab.count > 0 && (
+                            <span className="ml-1 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                                {tab.count}
+                            </span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -528,6 +597,108 @@ export default function AdminDashboard() {
                     {filteredStudents.length === 0 && (
                         <div className="text-center py-16 text-zinc-600 text-sm">No students found</div>
                     )}
+                </div>
+            )}
+
+            {/* ========== MESSAGES TAB ========== */}
+            {activeTab === "messages" && (
+                <div className="space-y-4">
+                    <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-6">
+                        <h3 className="text-sm font-bold text-white mb-6 flex items-center gap-2">
+                            <Inbox className="w-4 h-4 text-orange-500" />
+                            Student Messages & Inquiries
+                        </h3>
+
+                        <div className="space-y-3">
+                            {messages.map((msg) => (
+                                <div key={msg.id} className="p-5 bg-zinc-900/80 border border-white/5 rounded-2xl flex flex-col sm:flex-row gap-6">
+                                    <div className="flex-1 space-y-3">
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <span className="font-bold text-white text-base">{msg.name}</span>
+                                            <span className="text-xs text-zinc-500 bg-black/20 px-2 py-0.5 rounded-md border border-white/5">{msg.email}</span>
+                                            <span className="text-[10px] text-zinc-600 ml-auto font-mono">
+                                                {new Date(msg.createdAt).toLocaleString()}
+                                            </span>
+                                        </div>
+
+                                        {/* Details Grid */}
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-4 p-4 rounded-xl bg-black/20 border border-white/5">
+                                            {msg.institutionName && (
+                                                <div>
+                                                    <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Institution</span>
+                                                    <span className="text-sm text-zinc-300 flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-zinc-500" />{msg.institutionName}</span>
+                                                </div>
+                                            )}
+                                            {msg.jobTitle && (
+                                                <div>
+                                                    <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Title</span>
+                                                    <span className="text-sm text-zinc-300 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5 text-zinc-500" />{msg.jobTitle}</span>
+                                                </div>
+                                            )}
+                                            {msg.programType && (
+                                                <div>
+                                                    <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Program Type</span>
+                                                    <span className="text-sm text-zinc-300 flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5 text-zinc-500" />{msg.programType}</span>
+                                                </div>
+                                            )}
+                                            {msg.studentRange && (
+                                                <div>
+                                                    <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Students/Yr</span>
+                                                    <span className="text-sm text-zinc-300 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-zinc-500" />{msg.studentRange}</span>
+                                                </div>
+                                            )}
+                                            {msg.phone && (
+                                                <div>
+                                                    <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Phone</span>
+                                                    <span className="text-sm text-zinc-300">{msg.phone}</span>
+                                                </div>
+                                            )}
+                                            {msg.website && (
+                                                <div className="col-span-full md:col-span-1">
+                                                    <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Website</span>
+                                                    <a href={msg.website} target="_blank" rel="noreferrer" className="text-sm text-orange-400 hover:text-orange-300 hover:underline inline-flex items-center gap-1">
+                                                        Website <ArrowUpRight className="w-3 h-3" />
+                                                    </a>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {msg.message && (
+                                            <div className="pt-2">
+                                                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">Message</span>
+                                                <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap bg-zinc-900/50 p-4 rounded-xl border border-white/5">{msg.message}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-start sm:justify-end shrink-0">
+                                        {msg.status === "unread" ? (
+                                            <button
+                                                onClick={() => toggleMessageStatus(msg.id, msg.status)}
+                                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider hover:bg-orange-500/20 transition-colors"
+                                            >
+                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                                                Mark as Read
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => toggleMessageStatus(msg.id, msg.status)}
+                                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-zinc-800 border border-white/5 text-zinc-400 text-[10px] font-bold uppercase tracking-wider hover:bg-zinc-700 transition-colors"
+                                            >
+                                                <Check className="w-3 h-3" />
+                                                Read
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+
+                            {messages.length === 0 && (
+                                <div className="text-center py-12 text-zinc-500 text-sm">
+                                    No messages found.
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
 

@@ -14,7 +14,8 @@ import {
     Plus,
     ShieldCheck,
     ClipboardList,
-    Crown
+    Crown,
+    ChevronLeft, CheckSquare, Target, Clock, AlertCircle, Calendar, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
@@ -71,6 +72,7 @@ export default function DashboardLayout({
     const navItems = [
         { name: "Generator", href: "/dashboard", icon: LayoutDashboard },
         ...(isAdmin ? [{ name: "University Admin", href: "/dashboard/admin", icon: ShieldCheck }] : []),
+        ...(userProfile?.isSuperAdmin ? [{ name: "Super Admin", href: "/dashboard/superadmin", icon: LayoutDashboard }] : []),
         { name: "Profile", href: "/dashboard/profile", icon: User },
         { name: "Resumes", href: "/dashboard/resume-builder", icon: FileText },
         { name: "Optimizer", href: "/dashboard/resume-optimizer", icon: Zap },
