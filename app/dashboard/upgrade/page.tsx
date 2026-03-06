@@ -147,12 +147,18 @@ function UpgradePageInner() {
         const success = searchParams.get("success");
         const cancelled = searchParams.get("cancelled");
         const tier = searchParams.get("tier");
-        if (success === "true") {
-            toast.success(`${tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : ""} plan activated!`, {
-                description: "Your subscription is now active. Enjoy unlimited generations!"
-            });
-        } else if (cancelled === "true") {
-            toast.info("Checkout cancelled", { description: "No charges were made." });
+
+        if (success === "true" || cancelled === "true") {
+            if (success === "true") {
+                toast.success(`${tier ? tier.charAt(0).toUpperCase() + tier.slice(1) : ""} plan activated!`, {
+                    description: "Your subscription is now active. Enjoy unlimited generations!"
+                });
+            } else if (cancelled === "true") {
+                toast.info("Checkout cancelled", { description: "No charges were made." });
+            }
+
+            // Clean up the URL to prevent duplicate toasts on re-renders
+            window.history.replaceState({}, '', '/dashboard/upgrade');
         }
     }, [searchParams]);
 
