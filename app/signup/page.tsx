@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, registerCollegeIfEdu } from "@/contexts/AuthContext";
 import { ArrowLeft, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -37,6 +37,8 @@ export default function SignupPage() {
                 photoURL: "",
                 createdAt: new Date().toISOString()
             });
+
+            await registerCollegeIfEdu(email);
 
             toast.success("Account created!");
             router.push("/dashboard");

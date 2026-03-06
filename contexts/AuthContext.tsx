@@ -9,9 +9,35 @@ import {
     GoogleAuthProvider
 } from "firebase/auth";
 import { auth, googleProvider, db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, query, where, addDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+
+export const registerCollegeIfEdu = async (email: string) => {
+    if (!email || typeof email !== 'string') return;
+    const lowerEmail = email.toLowerCase().trim();
+    if (lowerEmail.endsWith('.edu')) {
+        try {
+            const domain = lowerEmail.split('@')[1];
+            if (!domain) return;
+
+            const waitlistRef = collection(db, "jobpeel_waitlist");
+            const q = query(waitlistRef, where("domains", "array-contains", domain));
+            const snap = await getDocs(q);
+
+            if (snap.empty) {
+                await addDoc(waitlistRef, {
+                    programName: domain,
+                    domains: [domain],
+                    admin_emails: [],
+                    createdAt: new Date().toISOString()
+                });
+            }
+        } catch (e) {
+            console.error("Failed to auto-register college:", e);
+        }
+    }
+};
 
 export interface UserProfile {
     firstName?: string;
@@ -140,6 +166,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     createdAt: new Date().toISOString(),
                     generationsUsed: 0,
                 });
+
+                if (firebaseUser.email) {
+                    await registerCollegeIfEdu(firebaseUser.email);
+                }
             }
 
             toast.success("Successfully logged in!");
