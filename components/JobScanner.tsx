@@ -33,8 +33,16 @@ export function JobScanner({ onJobFound }: JobScannerProps) {
                 },
                 body: JSON.stringify({ url, mode: "auto" }),
             });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error("Non-JSON Response:", text);
+                throw new Error(`Server returned a non-JSON response (${res.status}). This usually means the job post is protected from scrapers or the request timed out.`);
+            }
+            if (!res.ok) throw new Error(data.error || `Failed with status ${res.status}`);
+
             onJobFound(data);
             toast.success("Job scanned successfully!");
         } catch (err) {
@@ -62,8 +70,16 @@ export function JobScanner({ onJobFound }: JobScannerProps) {
                 },
                 body: formData,
             });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error("Non-JSON Response:", text);
+                throw new Error(`Server returned a non-JSON response (${res.status}). Upload may have timed out.`);
+            }
+            if (!res.ok) throw new Error(data.error || `Failed with status ${res.status}`);
+
             onJobFound(data);
             toast.success("Screenshot analyzed!");
         } catch (err) {

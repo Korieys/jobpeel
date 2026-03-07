@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdfjs-dist", "puppeteer", "puppeteer-extra", "puppeteer-extra-plugin-stealth", "firebase-admin"],
+  serverExternalPackages: ["pdfjs-dist", "firebase-admin"],
 };
 
 export default nextConfig;

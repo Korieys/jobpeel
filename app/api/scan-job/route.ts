@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
-import * as cheerio from "cheerio";
-import puppeteer from "puppeteer-extra";
-import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { verifyAuthToken } from "@/lib/firebase-admin";
 
-puppeteer.use(StealthPlugin());
-
 /**
- * Enhanced Job Scanner with Multi-Stage Fallback
- * 1. Soft Scrape (Cheerio) -> Validate with GPT-4o
- * 2. Hard Scrape (Puppeteer Text) -> Validate with GPT-4o
- * 3. Vision Scrape (Puppeteer Screenshot) -> GPT-4o Vision
+ * Enhanced Job Scanner powered by Firecrawl API
+ * 1. Firecrawl Scrape (Extracts clean Markdown)
+ * 2. Validate with GPT-4o
  */
 export async function POST(req: NextRequest) {
     // --- SECURITY INCIDENT FIX ---
@@ -58,100 +52,44 @@ export async function POST(req: NextRequest) {
             }
         };
 
-        // --- 1. Soft Scrape (Cheerio) ---
-        if (mode === "auto" || mode === "soft") {
-            try {
-                const res = await fetch(url, {
-                    headers: {
-                        "User-Agent":
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    },
-                });
-                const html = await res.text();
-                const $ = cheerio.load(html);
+        // --- 1. Firecrawl API Scrape ---
+        console.log("Starting Firecrawl Scrape...");
 
-                // Remove noise
-                $("script, style, nav, footer, iframe, svg").remove();
-
-                const title = $("h1").first().text().trim() || $("title").text().trim();
-                const bodyText = $("body").text().replace(/\s+/g, " ").trim();
-
-                if (bodyText.length > 200) {
-                    const structured = await validateAndStructure(title, bodyText);
-
-                    if (structured.valid !== false) {
-                        return NextResponse.json({ ...structured, method: "soft" });
-                    }
-                    console.log("Soft scrape rejected:", structured.reason);
-                    // Fall through to Hard Scrape
-                }
-            } catch (e) {
-                console.log("Soft scrape failed, falling back to Puppeteer:", e);
-            }
+        if (!process.env.FIRECRAWL_API_KEY) {
+            console.error("FIRECRAWL_API_KEY is missing");
+            return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
         }
 
-        // --- 2. Hard Scrape (Puppeteer) ---
-        // If mode is hard OR (mode is auto AND we haven't returned yet)
-        if (mode === "auto" || mode === "hard") {
-            console.log("Starting Hard Scrape...");
-            try {
-                browser = await puppeteer.launch({
-                    headless: true,
-                    args: ['--no-sandbox', '--disable-setuid-sandbox']
-                });
-                const page = await browser.newPage();
+        const firecrawlRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                url: url,
+                formats: ["markdown"],
+                onlyMainContent: true
+            })
+        });
 
-                // Set desktop viewport
-                await page.setViewport({ width: 1280, height: 800 });
+        if (!firecrawlRes.ok) {
+            const errorData = await firecrawlRes.json();
+            console.error("Firecrawl API Error:", errorData);
+            return NextResponse.json({ error: "Failed to scrape job. Site might be protected against bots." }, { status: 500 });
+        }
 
-                await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        const data = await firecrawlRes.json();
+        const markdown = data.data?.markdown || "";
+        const pageTitle = data.data?.metadata?.title || url;
 
-                // Optimized loading - try networkidle2 to wait for hydration
-                try {
-                    await page.goto(url, { waitUntil: "networkidle2", timeout: 45000 });
-                } catch (e) {
-                    console.warn("Navigation timeout, proceeding anyway...");
-                }
+        if (markdown.length > 50) {
+            const structured = await validateAndStructure(pageTitle, markdown);
 
-                // Give it a longer moment for hydration/rendering
-                await new Promise(r => setTimeout(r, 4000));
-
-                // Small scroll to trigger lazy-loaded sections (like job descriptions)
-                await page.evaluate(() => {
-                    window.scrollBy(0, 500);
-                });
-                await new Promise(r => setTimeout(r, 1000));
-
-                const title = await page.title();
-                const text = await page.evaluate(() => document.body.innerText);
-                const cleanedText = text.replace(/\s+/g, " ");
-
-                // Try Text Validation First
-                if (cleanedText.length > 200) {
-                    const structured = await validateAndStructure(title, cleanedText);
-
-                    if (structured.valid !== false) {
-                        await browser.close();
-                        return NextResponse.json({ ...structured, method: "hard_text" });
-                    }
-                    console.log("Hard scrape text rejected:", structured.reason);
-                }
-
-                // --- 3. Vision Fallback (Hard OCR) ---
-                console.log("Text content unavailable or rejected, switching to Vision...");
-                const screenshot = await page.screenshot({ encoding: "base64", fullPage: true });
-                await browser.close();
-                browser = null; // Prevent double close
-
-                const visionData = await analyzeScreenshot(screenshot);
-                return NextResponse.json({ ...visionData, method: "vision" });
-
-            } catch (e) {
-                console.error("Puppeteer/Vision failed:", e);
-                return NextResponse.json({ error: "Failed to scan job. Site might be protected." }, { status: 500 });
-            } finally {
-                if (browser) await browser.close();
+            if (structured.valid !== false) {
+                return NextResponse.json({ ...structured, method: "firecrawl" });
             }
+            console.log("Firecrawl scrape rejected by GPT:", structured.reason);
         }
 
         return NextResponse.json({ error: "This page isnt peelable" }, { status: 400 });
