@@ -64,31 +64,36 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
         }
 
-        const firecrawlRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                url: url,
-                formats: ["markdown"],
-                onlyMainContent: true
-            })
-        });
+        let firecrawlMarkdown = "";
+        let firecrawlTitle = url;
 
-        if (!firecrawlRes.ok) {
-            const errorData = await firecrawlRes.json();
-            console.error("Firecrawl API Error:", errorData);
-            return NextResponse.json({ error: "Failed to scrape job. Site might be protected against bots." }, { status: 500 });
+        try {
+            const firecrawlRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    url: url,
+                    formats: ["markdown"],
+                    onlyMainContent: true
+                })
+            });
+
+            if (!firecrawlRes.ok) {
+                console.error("Firecrawl API Error:", await firecrawlRes.text());
+            } else {
+                const data = await firecrawlRes.json();
+                firecrawlMarkdown = data.data?.markdown || "";
+                firecrawlTitle = data.data?.metadata?.title || url;
+            }
+        } catch (e) {
+            console.error("Firecrawl Request Failed:", e);
         }
 
-        const data = await firecrawlRes.json();
-        const markdown = data.data?.markdown || "";
-        const pageTitle = data.data?.metadata?.title || url;
-
-        if (markdown.length > 50) {
-            const structured = await validateAndStructure(pageTitle, markdown);
+        if (firecrawlMarkdown.length > 50) {
+            const structured = await validateAndStructure(firecrawlTitle, firecrawlMarkdown);
 
             if (structured.valid !== false) {
                 return NextResponse.json({ ...structured, method: "firecrawl" });
