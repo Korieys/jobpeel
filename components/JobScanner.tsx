@@ -33,8 +33,9 @@ export function JobScanner({ onJobFound }: JobScannerProps) {
                 },
                 body: JSON.stringify({ url, mode: "auto" }),
             });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
+            let data;
+            try { data = await res.json(); } catch { data = { error: `Server error: ${res.status}` }; }
+            if (!res.ok || data.error) throw new Error(data.error || "Scan failed");
             onJobFound(data);
             toast.success("Job scanned successfully!");
         } catch (err) {
@@ -62,8 +63,9 @@ export function JobScanner({ onJobFound }: JobScannerProps) {
                 },
                 body: formData,
             });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
+            let data;
+            try { data = await res.json(); } catch { data = { error: `Server error: ${res.status}` }; }
+            if (!res.ok || data.error) throw new Error(data.error || "Screenshot analysis failed");
             onJobFound(data);
             toast.success("Screenshot analyzed!");
         } catch (err) {
