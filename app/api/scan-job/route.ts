@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
 import { verifyAuthToken } from "@/lib/firebase-admin";
-import puppeteer from "puppeteer-extra";
-import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
-puppeteer.use(StealthPlugin());
-
-export const maxDuration = 60; // Increase Vercel timeout to 60s for Chromium fallback
+export const maxDuration = 60; // Allow up to 60s for fallback scraping on Vercel
 
 /**
- * Enhanced Job Scanner powered by Firecrawl API
- * 1. Firecrawl Scrape (Extracts clean Markdown)
- * 2. Validate with GPT-4o
+ * Enhanced Job Scanner: 3-tier scraping pipeline
+ * 1. Firecrawl API (fast, lightweight remote scrape)
+ * 2. Puppeteer + Stealth (headless browser fallback with @sparticuz/chromium)
+ * 3. GPT-4o Vision (screenshot OCR as last resort)
  */
 export async function POST(req: NextRequest) {
-    // --- SECURITY INCIDENT FIX ---
+    // --- AUTH ---
     const authUid = await verifyAuthToken(req);
     if (!authUid) {
         return NextResponse.json({ error: "Unauthorized. Missing or invalid authentication token." }, { status: 401 });
@@ -22,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     let browser: any = null;
     try {
-        const { url, mode = "auto" } = await req.json();
+        const { url } = await req.json();
 
         if (!url) {
             return NextResponse.json({ error: "URL is required" }, { status: 400 });
@@ -58,107 +55,133 @@ export async function POST(req: NextRequest) {
             }
         };
 
-        // --- 1. Firecrawl API Scrape ---
+        // ═══════════════════════════════════════════
+        // --- STEP 1: Firecrawl API (Primary) ---
+        // ═══════════════════════════════════════════
         console.log("Starting Firecrawl Scrape...");
 
         if (!process.env.FIRECRAWL_API_KEY) {
             console.error("FIRECRAWL_API_KEY is missing");
-            return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
+            // Don't fail hard here — fall through to Puppeteer
+        } else {
+            let firecrawlMarkdown = "";
+            let firecrawlTitle = url;
+
+            try {
+                const firecrawlRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        formats: ["markdown"],
+                        onlyMainContent: true
+                    })
+                });
+
+                if (!firecrawlRes.ok) {
+                    console.error("Firecrawl API Error:", await firecrawlRes.text());
+                } else {
+                    const data = await firecrawlRes.json();
+                    firecrawlMarkdown = data.data?.markdown || "";
+                    firecrawlTitle = data.data?.metadata?.title || url;
+                }
+            } catch (e) {
+                console.error("Firecrawl Request Failed:", e);
+            }
+
+            if (firecrawlMarkdown.length > 50) {
+                const structured = await validateAndStructure(firecrawlTitle, firecrawlMarkdown);
+                if (structured.valid !== false) {
+                    return NextResponse.json({ ...structured, method: "firecrawl" });
+                }
+                console.log("Firecrawl scrape rejected by GPT:", structured.reason);
+            }
         }
 
-        let firecrawlMarkdown = "";
-        let firecrawlTitle = url;
+        // ═══════════════════════════════════════════
+        // --- STEP 2: Puppeteer Stealth Fallback ---
+        // ═══════════════════════════════════════════
+        console.log("Falling back to Puppeteer Stealth browser...");
 
         try {
-            const firecrawlRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    url: url,
-                    formats: ["markdown"],
-                    onlyMainContent: true
-                })
-            });
+            // Dynamically import so build doesn't break if binary is missing
+            const puppeteerExtra = (await import("puppeteer-extra")).default;
+            const StealthPlugin = (await import("puppeteer-extra-plugin-stealth")).default;
+            const chromium = (await import("@sparticuz/chromium")).default;
 
-            if (!firecrawlRes.ok) {
-                console.error("Firecrawl API Error:", await firecrawlRes.text());
-            } else {
-                const data = await firecrawlRes.json();
-                firecrawlMarkdown = data.data?.markdown || "";
-                firecrawlTitle = data.data?.metadata?.title || url;
-            }
-        } catch (e) {
-            console.error("Firecrawl Request Failed:", e);
-        }
+            puppeteerExtra.use(StealthPlugin());
 
-        if (firecrawlMarkdown.length > 50) {
-            const structured = await validateAndStructure(firecrawlTitle, firecrawlMarkdown);
+            // On Vercel, use remote chromium binary. Locally, use system Chrome.
+            const isVercel = !!process.env.VERCEL;
+            const execPath = isVercel
+                ? await chromium.executablePath(
+                    "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar")
+                : undefined; // puppeteer-core will use installed chromium
 
-            if (structured.valid !== false) {
-                return NextResponse.json({ ...structured, method: "firecrawl" });
-            }
-            console.log("Firecrawl scrape rejected by GPT:", structured.reason);
-        }
-
-        // --- 2. Fallback: Puppeteer Stealth Scrape ---
-        console.log("Firecrawl failed to peel the data or returned empty Markdown. Falling back to Puppeteer Stealth...");
-
-        try {
-            browser = await puppeteer.launch({
+            browser = await puppeteerExtra.launch({
                 headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--single-process",
+                    "--no-zygote",
+                ],
+                ...(execPath && { executablePath: execPath }),
             });
 
             const page = await browser.newPage();
             await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
             try {
-                await page.goto(url, { waitUntil: "networkidle2", timeout: 8000 });
+                await page.goto(url, { waitUntil: "networkidle2", timeout: 10000 });
             } catch (e) {
-                console.warn("Navigation timeout, proceeding anyway...");
+                console.warn("Navigation timeout, proceeding with partial content...");
             }
-            await new Promise(r => setTimeout(r, 2000));
-            // Small scroll to trigger lazy-loaded sections (like job descriptions)
-            await page.evaluate(() => {
-                window.scrollBy(0, 500);
-            });
-            await new Promise(r => setTimeout(r, 1000));
+
+            // Scroll to trigger lazy-loaded content
+            await page.evaluate(() => window.scrollBy(0, 500));
+            await new Promise(r => setTimeout(r, 1500));
 
             const title = await page.title();
-            const text = await page.evaluate(() => document.body.innerText);
-            const cleanedText = text.replace(/\s+/g, " ");
+            const bodyText = await page.evaluate(() => document.body.innerText);
+            const cleanedText = bodyText.replace(/\s+/g, " ").trim();
 
-            // Try Text Validation First
             if (cleanedText.length > 200) {
                 const structured = await validateAndStructure(title, cleanedText);
-
                 if (structured.valid !== false) {
                     await browser.close();
-                    return NextResponse.json({ ...structured, method: "chromium_text" });
+                    browser = null;
+                    return NextResponse.json({ ...structured, method: "puppeteer_stealth" });
                 }
-                console.log("Chromium scrape text rejected:", structured.reason);
+                console.log("Puppeteer text rejected by GPT:", structured.reason);
             }
 
-            // --- 3. Vision Fallback (Hard OCR) ---
-            console.log("Text content unavailable or rejected, switching to Vision...");
+            // ═══════════════════════════════════════════
+            // --- STEP 3: Vision OCR (Last Resort) ---
+            // ═══════════════════════════════════════════
+            console.log("Text insufficient, trying vision analysis...");
             const screenshot = await page.screenshot({ encoding: "base64", fullPage: true }) as string;
             await browser.close();
-            browser = null; // Prevent double close
+            browser = null;
 
             const visionData = await analyzeScreenshot(screenshot);
-            return NextResponse.json({ ...visionData, method: "vision" });
+            if (visionData && !visionData.error) {
+                return NextResponse.json({ ...visionData, method: "vision" });
+            }
 
         } catch (e) {
-            console.error("Puppeteer/Vision failed:", e);
-            return NextResponse.json({ error: "Failed to scan job. Site might be protected against bots." }, { status: 500 });
+            console.error("Puppeteer fallback failed:", e);
         } finally {
-            if (browser) await browser.close();
+            if (browser) {
+                try { await browser.close(); } catch { }
+            }
         }
 
-        return NextResponse.json({ error: "This page isnt peelable" }, { status: 400 });
+        return NextResponse.json({ error: "This page isn't peelable by any of our methods." }, { status: 400 });
 
     } catch (error) {
         console.error("Scan error:", error);
