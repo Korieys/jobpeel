@@ -55,51 +55,91 @@ export async function POST(req: NextRequest) {
             }
         };
 
-        // ═══════════════════════════════════════════
-        // --- STEP 1: Firecrawl API (Primary) ---
-        // ═══════════════════════════════════════════
-        console.log("Starting Firecrawl Scrape...");
+        // ═══════════════════════════════════════════════════════════
+        // --- STEP 1: Firecrawl API (2-pass power scrape) ---
+        // ═══════════════════════════════════════════════════════════
+        console.log("Starting Firecrawl power scrape...");
 
         if (!process.env.FIRECRAWL_API_KEY) {
-            console.error("FIRECRAWL_API_KEY is missing");
-            // Don't fail hard here — fall through to Puppeteer
+            console.error("FIRECRAWL_API_KEY is missing — skipping Firecrawl");
         } else {
-            let firecrawlMarkdown = "";
-            let firecrawlTitle = url;
+            const firecrawlHeaders = {
+                "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`,
+                "Content-Type": "application/json"
+            };
 
-            try {
-                const firecrawlRes = await fetch("https://api.firecrawl.dev/v1/scrape", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${process.env.FIRECRAWL_API_KEY}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        url: url,
-                        formats: ["markdown"],
-                        onlyMainContent: true
-                    })
-                });
-
-                if (!firecrawlRes.ok) {
-                    console.error("Firecrawl API Error:", await firecrawlRes.text());
-                } else {
-                    const data = await firecrawlRes.json();
-                    firecrawlMarkdown = data.data?.markdown || "";
-                    firecrawlTitle = data.data?.metadata?.title || url;
+            // Helper to call Firecrawl with configurable options
+            const callFirecrawl = async (options: object) => {
+                try {
+                    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+                        method: "POST",
+                        headers: firecrawlHeaders,
+                        body: JSON.stringify({ url, formats: ["markdown"], ...options })
+                    });
+                    if (!res.ok) {
+                        console.error(`Firecrawl error (${res.status}):`, await res.text());
+                        return null;
+                    }
+                    const json = await res.json();
+                    return {
+                        markdown: (json.data?.markdown || "") as string,
+                        title: (json.data?.metadata?.title || url) as string,
+                    };
+                } catch (e) {
+                    console.error("Firecrawl fetch threw:", e);
+                    return null;
                 }
-            } catch (e) {
-                console.error("Firecrawl Request Failed:", e);
+            };
+
+            // --- Pass 1: Full JS render + scroll actions (handles most SPAs) ---
+            console.log("Firecrawl Pass 1: JS rendering + scroll actions...");
+            const pass1 = await callFirecrawl({
+                onlyMainContent: true,
+                waitFor: 5000,          // Wait 5s for JS to hydrate
+                timeout: 30000,
+                actions: [
+                    { type: "scroll", direction: "down", amount: 800 },
+                    { type: "wait", milliseconds: 2000 },
+                    { type: "scroll", direction: "down", amount: 800 },
+                    { type: "wait", milliseconds: 1000 },
+                ],
+                headers: {
+                    "Accept-Language": "en-US,en;q=0.9",
+                }
+            });
+
+            if (pass1 && pass1.markdown.length > 50) {
+                const structured = await validateAndStructure(pass1.title, pass1.markdown);
+                if (structured.valid !== false) {
+                    return NextResponse.json({ ...structured, method: "firecrawl_pass1" });
+                }
+                console.log("Pass 1 rejected by GPT:", structured.reason);
             }
 
-            if (firecrawlMarkdown.length > 50) {
-                const structured = await validateAndStructure(firecrawlTitle, firecrawlMarkdown);
+            // --- Pass 2: Mobile emulation + longer wait (handles geo-locked / mobile-first sites) ---
+            console.log("Firecrawl Pass 2: Mobile emulation + extended wait...");
+            const pass2 = await callFirecrawl({
+                onlyMainContent: true,
+                mobile: true,           // Emulate mobile device
+                waitFor: 10000,         // Extra 10s for slow-loading SPAs
+                timeout: 45000,
+                actions: [
+                    { type: "wait", milliseconds: 3000 },
+                    { type: "scroll", direction: "down", amount: 500 },
+                    { type: "wait", milliseconds: 3000 },
+                ],
+                skipTlsVerification: true,  // Handle sites with cert issues
+            });
+
+            if (pass2 && pass2.markdown.length > 50) {
+                const structured = await validateAndStructure(pass2.title, pass2.markdown);
                 if (structured.valid !== false) {
-                    return NextResponse.json({ ...structured, method: "firecrawl" });
+                    return NextResponse.json({ ...structured, method: "firecrawl_pass2" });
                 }
-                console.log("Firecrawl scrape rejected by GPT:", structured.reason);
+                console.log("Pass 2 rejected by GPT:", structured.reason);
             }
         }
+
 
         // ═══════════════════════════════════════════
         // --- STEP 2: Puppeteer Stealth Fallback ---
