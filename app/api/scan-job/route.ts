@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
 import { verifyAuthToken } from "@/lib/firebase-admin";
-import puppeteer from "puppeteer-core";
-import chromium from "@sparticuz/chromium";
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
+
+puppeteer.use(StealthPlugin());
 
 export const maxDuration = 60; // Increase Vercel timeout to 60s for Chromium fallback
 
@@ -101,14 +103,13 @@ export async function POST(req: NextRequest) {
             console.log("Firecrawl scrape rejected by GPT:", structured.reason);
         }
 
-        // --- 2. Fallback: Serverless Chromium Scrape ---
-        console.log("Firecrawl failed to peel the data or returned empty Markdown. Falling back to Serverless Chromium...");
+        // --- 2. Fallback: Puppeteer Stealth Scrape ---
+        console.log("Firecrawl failed to peel the data or returned empty Markdown. Falling back to Puppeteer Stealth...");
 
         try {
             browser = await puppeteer.launch({
-                args: chromium.args,
-                executablePath: await chromium.executablePath(),
                 headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
             });
 
             const page = await browser.newPage();

@@ -11,6 +11,7 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@sparticuz/chromium": "^143.0.4",
+    "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
     "firebase": "^12.8.0",
     "firebase-admin": "^13.7.0",
@@ -21,7 +22,10 @@
     "openai": "^6.16.0",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^3.11.174",
+    "puppeteer": "^24.38.0",
     "puppeteer-core": "^24.38.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-dropzone": "^15.0.0",
