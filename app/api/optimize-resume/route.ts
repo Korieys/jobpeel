@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
 import { verifyAuthToken } from "@/lib/firebase-admin";
 
-export const dynamic = "force-dynamic";
-export const maxDuration = 60; // Allow longer execution time for AI analysis
-
 export async function POST(req: NextRequest) {
   // --- SECURITY INCIDENT FIX ---
   const authUid = await verifyAuthToken(req);

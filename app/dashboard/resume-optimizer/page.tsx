@@ -55,8 +55,7 @@ export default function ResumeOptimizerPage() {
             });
 
             if (!res.ok) {
-                let errorData;
-                try { errorData = await res.json(); } catch { errorData = { error: `Server Error: ${res.status}` }; }
+                const errorData = await res.json();
                 throw new Error(errorData.error || "Failed to parse PDF");
             }
 

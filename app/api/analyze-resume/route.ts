@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuthToken } from "@/lib/firebase-admin";
 
-export const dynamic = "force-dynamic";
-
 export async function POST(req: NextRequest) {
     const authUid = await verifyAuthToken(req);
     if (!authUid) {
