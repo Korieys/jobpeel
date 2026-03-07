@@ -114,12 +114,22 @@ export async function POST(req: NextRequest) {
 
             puppeteerExtra.use(StealthPlugin());
 
-            // On Vercel, use remote chromium binary. Locally, use system Chrome.
+            // On Vercel, download remote Sparticuz Chromium. Locally, use installed Chrome.
             const isVercel = !!process.env.VERCEL;
-            const execPath = isVercel
-                ? await chromium.executablePath(
-                    "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar")
-                : undefined; // puppeteer-core will use installed chromium
+            let execPath: string | undefined;
+            if (isVercel) {
+                execPath = await chromium.executablePath(
+                    "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar"
+                );
+            } else {
+                // Use locally installed Google Chrome on Windows
+                const localChromePaths = [
+                    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+                ];
+                const fs = await import("fs");
+                execPath = localChromePaths.find(p => fs.existsSync(p));
+            }
 
             browser = await puppeteerExtra.launch({
                 headless: true,
