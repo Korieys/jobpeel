@@ -3,6 +3,9 @@ import { openai } from "@/lib/openai";
 import { adminDb, verifyAuthToken } from "@/lib/firebase-admin";
 import * as admin from "firebase-admin";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60; // AI endpoints may take longer
+
 const FREE_TIER_LIMIT = 10;
 
 async function isUniversityUser(email: string): Promise<boolean> {

@@ -5,6 +5,8 @@ import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { verifyAuthToken } from "@/lib/firebase-admin";
 
+export const dynamic = "force-dynamic";
+
 puppeteer.use(StealthPlugin());
 
 /**
