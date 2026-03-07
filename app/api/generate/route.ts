@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
                 const isUni = await isUniversityUser(email);
 
                 if (!isUni) {
-                    await userRef.update({ generationsUsed: admin.firestore.FieldValue.increment(1) });
+                    await userRef.set({ generationsUsed: admin.firestore.FieldValue.increment(1) }, { merge: true });
                 }
             } catch (e) {
                 console.error("Failed to increment generation count:", e);

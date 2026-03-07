@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
 import { verifyAuthToken } from "@/lib/firebase-admin";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
+
+export const maxDuration = 60; // Increase Vercel timeout to 60s for Chromium fallback
 
 /**
  * Enhanced Job Scanner powered by Firecrawl API
@@ -90,6 +94,62 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ ...structured, method: "firecrawl" });
             }
             console.log("Firecrawl scrape rejected by GPT:", structured.reason);
+        }
+
+        // --- 2. Fallback: Serverless Chromium Scrape ---
+        console.log("Firecrawl failed to peel the data or returned empty Markdown. Falling back to Serverless Chromium...");
+
+        try {
+            browser = await puppeteer.launch({
+                args: chromium.args,
+                executablePath: await chromium.executablePath(),
+                headless: true,
+            });
+
+            const page = await browser.newPage();
+            await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+            try {
+                await page.goto(url, { waitUntil: "networkidle2", timeout: 8000 });
+            } catch (e) {
+                console.warn("Navigation timeout, proceeding anyway...");
+            }
+            await new Promise(r => setTimeout(r, 2000));
+            // Small scroll to trigger lazy-loaded sections (like job descriptions)
+            await page.evaluate(() => {
+                window.scrollBy(0, 500);
+            });
+            await new Promise(r => setTimeout(r, 1000));
+
+            const title = await page.title();
+            const text = await page.evaluate(() => document.body.innerText);
+            const cleanedText = text.replace(/\s+/g, " ");
+
+            // Try Text Validation First
+            if (cleanedText.length > 200) {
+                const structured = await validateAndStructure(title, cleanedText);
+
+                if (structured.valid !== false) {
+                    await browser.close();
+                    return NextResponse.json({ ...structured, method: "chromium_text" });
+                }
+                console.log("Chromium scrape text rejected:", structured.reason);
+            }
+
+            // --- 3. Vision Fallback (Hard OCR) ---
+            console.log("Text content unavailable or rejected, switching to Vision...");
+            const screenshot = await page.screenshot({ encoding: "base64", fullPage: true }) as string;
+            await browser.close();
+            browser = null; // Prevent double close
+
+            const visionData = await analyzeScreenshot(screenshot);
+            return NextResponse.json({ ...visionData, method: "vision" });
+
+        } catch (e) {
+            console.error("Puppeteer/Vision failed:", e);
+            return NextResponse.json({ error: "Failed to scan job. Site might be protected against bots." }, { status: 500 });
+        } finally {
+            if (browser) await browser.close();
         }
 
         return NextResponse.json({ error: "This page isnt peelable" }, { status: 400 });
