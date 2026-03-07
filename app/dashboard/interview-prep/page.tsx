@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { auth } from "@/lib/firebase";
 
 interface Message {
     role: "user" | "assistant";
@@ -58,9 +59,13 @@ export default function InterviewPrepPage() {
         if (!jobUrl.trim()) return;
         setIsScanningJob(true);
         try {
+            const token = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/scan-job", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ url: jobUrl }),
             });
             if (!res.ok) throw new Error("Failed to scan");
@@ -80,9 +85,13 @@ export default function InterviewPrepPage() {
         setStarted(true);
         setIsLoading(true);
         try {
+            const token = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/interview", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     messages: [],
                     jobTitle,
@@ -111,9 +120,13 @@ export default function InterviewPrepPage() {
         setIsLoading(true);
 
         try {
+            const token = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/interview", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     messages: newMessages,
                     jobTitle,

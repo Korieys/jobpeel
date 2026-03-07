@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 import jsPDF from "jspdf";
 import { useAuth } from "@/contexts/AuthContext";
+import { auth } from "@/lib/firebase";
 
 export default function DashboardPage() {
     const { user, userProfile, refreshGenerations } = useAuth();
@@ -67,9 +68,13 @@ export default function DashboardPage() {
         timeouts.push(setTimeout(() => setLoadingStep(4), 8000)); // Polishing
 
         try {
+            const token = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/generate", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ resumeText, jobData, tone, userProfile, userId: user?.uid }),
                 signal: abortControllerRef.current.signal
             });

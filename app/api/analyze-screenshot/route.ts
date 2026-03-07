@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
+import { verifyAuthToken } from "@/lib/firebase-admin";
 
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+    const authUid = await verifyAuthToken(req);
+    if (!authUid) {
+        return NextResponse.json({ error: "Unauthorized. Missing or invalid authentication token." }, { status: 401 });
+    }
+
     try {
         const formData = await req.formData();
         const file = formData.get("file") as File | null;

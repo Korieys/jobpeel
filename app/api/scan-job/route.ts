@@ -3,6 +3,7 @@ import { openai } from "@/lib/openai";
 import * as cheerio from "cheerio";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import { verifyAuthToken } from "@/lib/firebase-admin";
 
 puppeteer.use(StealthPlugin());
 
@@ -13,6 +14,12 @@ puppeteer.use(StealthPlugin());
  * 3. Vision Scrape (Puppeteer Screenshot) -> GPT-4o Vision
  */
 export async function POST(req: NextRequest) {
+    // --- SECURITY INCIDENT FIX ---
+    const authUid = await verifyAuthToken(req);
+    if (!authUid) {
+        return NextResponse.json({ error: "Unauthorized. Missing or invalid authentication token." }, { status: 401 });
+    }
+
     let browser: any = null;
     try {
         const { url, mode = "auto" } = await req.json();

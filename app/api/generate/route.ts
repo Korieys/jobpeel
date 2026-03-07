@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
-import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, getDocs, updateDoc, increment } from "firebase/firestore";
+import { adminDb, verifyAuthToken } from "@/lib/firebase-admin";
+import * as admin from "firebase-admin";
 
 const FREE_TIER_LIMIT = 10;
 
 async function isUniversityUser(email: string): Promise<boolean> {
     try {
-        const waitlistRef = collection(db, "jobpeel_waitlist");
-        const snap = await getDocs(waitlistRef);
+        if (!adminDb) return false;
+        const waitlistRef = adminDb.collection("jobpeel_waitlist");
+        const snap = await waitlistRef.get();
         for (const docSnap of snap.docs) {
             const data = docSnap.data();
             const domains: string[] = data.domains || [];
@@ -30,11 +31,22 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing resume or job data" }, { status: 400 });
         }
 
+        // --- SECURITY INCIDENT FIX: Authenticate the user from Token ---
+        const authUid = await verifyAuthToken(req);
+        if (!authUid) {
+            return NextResponse.json({ error: "Unauthorized. Missing or invalid authentication token." }, { status: 401 });
+        }
+
+        // Determine the actual userId to check against. 
+        // We override whatever the client sent with the cryptographically verified one.
+        const secureUserId = authUid;
+
         // --- Paywall Check ---
-        if (userId) {
-            const userRef = doc(db, "users", userId);
-            const userSnap = await getDoc(userRef);
-            const userData = userSnap.exists() ? userSnap.data() : {};
+        if (secureUserId) {
+            if (!adminDb) throw new Error("Database not initialized");
+            const userRef = adminDb.collection("users").doc(secureUserId);
+            const userSnap = await userRef.get();
+            const userData = userSnap.exists ? userSnap.data() || {} : {};
             const email: string = userData.email || userProfile?.email || "";
             const generationsUsed: number = userData.generationsUsed ?? 0;
             const plan: string = userData.plan || "free";
@@ -117,16 +129,17 @@ export async function POST(req: NextRequest) {
             .trim();
 
         // --- Increment counter on success ---
-        if (userId) {
+        if (secureUserId) {
             try {
-                const userRef = doc(db, "users", userId);
-                const userSnap = await getDoc(userRef);
-                const userData = userSnap.exists() ? userSnap.data() : {};
+                if (!adminDb) throw new Error("Database not initialized");
+                const userRef = adminDb.collection("users").doc(secureUserId);
+                const userSnap = await userRef.get();
+                const userData = userSnap.exists ? userSnap.data() || {} : {};
                 const email: string = userData.email || userProfile?.email || "";
                 const isUni = await isUniversityUser(email);
 
                 if (!isUni) {
-                    await updateDoc(userRef, { generationsUsed: increment(1) });
+                    await userRef.update({ generationsUsed: admin.firestore.FieldValue.increment(1) });
                 }
             } catch (e) {
                 console.error("Failed to increment generation count:", e);

@@ -19,6 +19,7 @@ import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { auth } from "@/lib/firebase";
 
 interface AnalysisResult {
     score: number;
@@ -44,8 +45,12 @@ export default function ResumeOptimizerPage() {
             const formData = new FormData();
             formData.append("file", file);
 
+            const token = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/analyze-resume", {
                 method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
                 body: formData,
             });
 
@@ -98,9 +103,13 @@ export default function ResumeOptimizerPage() {
         setError(null);
 
         try {
+            const token = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/optimize-resume", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ resumeText, jobDescription }),
             });
 

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { adminDb } from "@/lib/firebase-admin";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2026-02-25.clover",
@@ -21,22 +20,23 @@ const PRICE_TO_PLAN: Record<string, string> = {
 };
 
 async function findUserByStripeCustomer(customerId: string): Promise<string | null> {
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, where("stripeCustomerId", "==", customerId));
-    const snap = await getDocs(q);
+    if (!adminDb) return null;
+    const usersRef = adminDb.collection("users");
+    const snap = await usersRef.where("stripeCustomerId", "==", customerId).get();
     if (!snap.empty) return snap.docs[0].id;
     return null;
 }
 
 async function updateUserPlan(userId: string, plan: string, stripeCustomerId?: string) {
-    const userRef = doc(db, "users", userId);
+    if (!adminDb) return;
+    const userRef = adminDb.collection("users").doc(userId);
     const update: Record<string, any> = {
         plan,
         // Reset the generation counter when upgrading to a paid plan
         ...(plan !== "free" ? { generationsUsed: 0 } : {}),
     };
     if (stripeCustomerId) update.stripeCustomerId = stripeCustomerId;
-    await updateDoc(userRef, update);
+    await userRef.update(update);
 }
 
 export async function POST(req: NextRequest) {

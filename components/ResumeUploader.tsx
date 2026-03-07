@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadResume } from "@/lib/storage";
 import { toast } from "sonner";
+import { auth } from "@/lib/firebase";
 
 interface ResumeUploaderProps {
     onResumeParsed: (text: string) => void;
@@ -52,10 +53,15 @@ export function ResumeUploader({ onResumeParsed }: ResumeUploaderProps) {
             // Parallel execution: Upload to Storage (if logged in) AND Analyze
             const uploadPromise = user ? uploadResume(user.uid, file) : Promise.resolve(null);
 
+            const token = await auth.currentUser?.getIdToken();
+
             const [uploadResult, response] = await Promise.all([
                 uploadPromise,
                 fetch("/api/analyze-resume", {
                     method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    },
                     body: formData,
                 })
             ]);

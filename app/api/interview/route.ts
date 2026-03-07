@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
+import { verifyAuthToken } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
+    // --- SECURITY INCIDENT FIX ---
+    const authUid = await verifyAuthToken(req);
+    if (!authUid) {
+        return NextResponse.json({ error: "Unauthorized. Missing or invalid authentication token." }, { status: 401 });
+    }
+
     try {
         const { messages, jobTitle, jobDescription, interviewType = "behavioral" } = await req.json();
 

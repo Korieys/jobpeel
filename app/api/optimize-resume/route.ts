@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openai } from "@/lib/openai";
+import { verifyAuthToken } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
-    try {
-        const { resumeText, jobDescription } = await req.json();
+  // --- SECURITY INCIDENT FIX ---
+  const authUid = await verifyAuthToken(req);
+  if (!authUid) {
+    return NextResponse.json({ error: "Unauthorized. Missing or invalid authentication token." }, { status: 401 });
+  }
 
-        if (!resumeText) {
-            return NextResponse.json({ error: "Missing resume text" }, { status: 400 });
-        }
+  try {
+    const { resumeText, jobDescription } = await req.json();
 
-        const jobContext = jobDescription
-            ? `\n\nTARGET JOB DESCRIPTION (use this to evaluate keyword match and relevance):\n${jobDescription}`
-            : "";
+    if (!resumeText) {
+      return NextResponse.json({ error: "Missing resume text" }, { status: 400 });
+    }
 
-        const prompt = `You are an expert ATS (Applicant Tracking System) analyst and career coach.
+    const jobContext = jobDescription
+      ? `\n\nTARGET JOB DESCRIPTION (use this to evaluate keyword match and relevance):\n${jobDescription}`
+      : "";
+
+    const prompt = `You are an expert ATS (Applicant Tracking System) analyst and career coach.
 
 Analyze the following resume for ATS compatibility, clarity, and professional impact.${jobContext}
 
@@ -58,24 +65,24 @@ Return your response as JSON with this exact structure:
   "strengthHighlights": ["string", "string", "string"]
 }`;
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are an expert ATS and resume analyst. Always return valid JSON. Be specific and actionable in your feedback. Never be generic."
-                },
-                { role: "user", content: prompt }
-            ],
-            response_format: { type: "json_object" },
-            temperature: 0.3,
-        });
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert ATS and resume analyst. Always return valid JSON. Be specific and actionable in your feedback. Never be generic."
+        },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+    });
 
-        const analysis = JSON.parse(completion.choices[0].message.content || "{}");
+    const analysis = JSON.parse(completion.choices[0].message.content || "{}");
 
-        return NextResponse.json(analysis);
-    } catch (error) {
-        console.error("Resume optimization error:", error);
-        return NextResponse.json({ error: "Failed to analyze resume" }, { status: 500 });
-    }
+    return NextResponse.json(analysis);
+  } catch (error) {
+    console.error("Resume optimization error:", error);
+    return NextResponse.json({ error: "Failed to analyze resume" }, { status: 500 });
+  }
 }

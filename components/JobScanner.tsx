@@ -5,6 +5,7 @@ import { Search, Upload, Loader2, Link as LinkIcon, Image as ImageIcon, CheckCir
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { auth } from "@/lib/firebase";
 
 interface JobScannerProps {
     onJobFound: (data: any) => void;
@@ -23,9 +24,13 @@ export function JobScanner({ onJobFound }: JobScannerProps) {
         setIsLoading(true);
         setError(null);
         try {
+            const token = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/scan-job", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ url, mode: "auto" }),
             });
             const data = await res.json();
@@ -49,8 +54,12 @@ export function JobScanner({ onJobFound }: JobScannerProps) {
         formData.append("file", e.target.files[0]);
 
         try {
+            const token = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/analyze-screenshot", {
                 method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
                 body: formData,
             });
             const data = await res.json();
