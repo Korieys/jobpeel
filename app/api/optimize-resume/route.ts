@@ -3,6 +3,10 @@ import { openai } from "@/lib/openai";
 import { verifyAuthToken } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
+  // COMING SOON — Feature temporarily disabled
+  return NextResponse.json({ error: "Resume Optimizer is coming soon. This feature is not yet available." }, { status: 503 });
+
+  // --- Original implementation below (unreachable — feature disabled) ---
   // --- SECURITY INCIDENT FIX ---
   const authUid = await verifyAuthToken(req);
   if (!authUid) {
@@ -47,22 +51,22 @@ Also provide:
 
 Return your response as JSON with this exact structure:
 {
-  "overallScore": number,
-  "categories": [
-    {
-      "name": "Contact & Header",
-      "score": number,
-      "summary": "string",
-      "suggestions": ["string", "string"]
-    }
-  ],
-  "topImprovements": ["string", "string", "string", "string", "string"],
-  "keywordAnalysis": {
-    "matchPercentage": number | null,
-    "matchedKeywords": ["string"] | [],
-    "missingKeywords": ["string"] | []
-  },
-  "strengthHighlights": ["string", "string", "string"]
+"overallScore": number,
+"categories": [
+  {
+    "name": "Contact & Header",
+    "score": number,
+    "summary": "string",
+    "suggestions": ["string", "string"]
+  }
+],
+"topImprovements": ["string", "string", "string", "string", "string"],
+"keywordAnalysis": {
+  "matchPercentage": number | null,
+  "matchedKeywords": ["string"] | [],
+  "missingKeywords": ["string"] | []
+},
+"strengthHighlights": ["string", "string", "string"]
 }`;
 
     const completion = await openai.chat.completions.create({

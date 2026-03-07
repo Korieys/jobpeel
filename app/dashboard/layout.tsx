@@ -75,8 +75,8 @@ export default function DashboardLayout({
         ...(userProfile?.isSuperAdmin ? [{ name: "Super Admin", href: "/dashboard/superadmin", icon: LayoutDashboard }] : []),
         { name: "Profile", href: "/dashboard/profile", icon: User },
         { name: "Resumes", href: "/dashboard/resume-builder", icon: FileText },
-        { name: "Optimizer", href: "/dashboard/resume-optimizer", icon: Zap },
-        { name: "Interview Prep", href: "/dashboard/interview-prep", icon: MessageSquare },
+        { name: "Optimizer", href: "/dashboard/resume-optimizer", icon: Zap, badge: "Soon" },
+        { name: "Interview Prep", href: "/dashboard/interview-prep", icon: MessageSquare, badge: "Soon" },
         { name: "Tracker", href: "/dashboard/tracker", icon: ClipboardList },
         ...(!userProfile?.isUniversityUser ? [{ name: "Upgrade", href: "/dashboard/upgrade", icon: Crown }] : []),
     ];

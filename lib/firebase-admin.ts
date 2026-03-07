@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import { NextRequest } from 'next/server';
 
 // Initialize Firebase Admin if it hasn't been initialized yet
@@ -20,7 +21,7 @@ if (!admin.apps.length) {
 }
 
 export const adminAuth = admin.apps.length > 0 ? admin.auth() : null;
-export const adminDb = admin.apps.length > 0 ? admin.firestore() : null;
+export const adminDb = admin.apps.length > 0 ? getFirestore(admin.app(), "jobpeel2") : null;
 
 /**
  * Extracts and verifies the Firebase ID token from the Authorization header.
