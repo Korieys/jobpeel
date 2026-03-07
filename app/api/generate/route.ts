@@ -129,24 +129,35 @@ export async function POST(req: NextRequest) {
             .trim();
 
         // --- Increment counter on success ---
+        let newGenerationsUsed: number | null = null;
         if (secureUserId) {
             try {
                 if (!adminDb) throw new Error("Database not initialized");
                 const userRef = adminDb.collection("users").doc(secureUserId);
-                const userSnap = await userRef.get();
-                const userData = userSnap.exists ? userSnap.data() || {} : {};
-                const email: string = userData.email || userProfile?.email || "";
+
+                // Re-fetch user to check isUni and current count
+                const snap = await userRef.get();
+                const ud = snap.exists ? snap.data() || {} : {};
+                const email: string = ud.email || userProfile?.email || "";
                 const isUni = await isUniversityUser(email);
+
+                console.log(`[generate] uid=${secureUserId} isUni=${isUni} currentCount=${ud.generationsUsed ?? 0}`);
 
                 if (!isUni) {
                     await userRef.set({ generationsUsed: admin.firestore.FieldValue.increment(1) }, { merge: true });
+                    // Read the authoritative new value back from the server immediately
+                    const updated = await userRef.get();
+                    newGenerationsUsed = updated.data()?.generationsUsed ?? (ud.generationsUsed ?? 0) + 1;
+                    console.log(`[generate] incremented → newGenerationsUsed=${newGenerationsUsed}`);
+                } else {
+                    newGenerationsUsed = ud.generationsUsed ?? 0;
                 }
             } catch (e) {
                 console.error("Failed to increment generation count:", e);
             }
         }
 
-        return NextResponse.json({ coverLetter });
+        return NextResponse.json({ coverLetter, generationsUsed: newGenerationsUsed });
     } catch (error) {
         console.error("Values generation error:", error);
         return NextResponse.json({ error: "Failed to generate cover letter" }, { status: 500 });

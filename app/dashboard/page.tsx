@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/lib/firebase";
 
 export default function DashboardPage() {
-    const { user, userProfile, refreshGenerations } = useAuth();
+    const { user, userProfile, refreshGenerations, setGenerationsUsed } = useAuth();
     const FREE_TIER_LIMIT = 10;
     const generationsUsed = userProfile?.generationsUsed ?? 0;
     const isUniversityUser = userProfile?.isUniversityUser ?? false;
@@ -81,6 +81,7 @@ export default function DashboardPage() {
 
             if (res.status === 403) {
                 toast.error("Generation limit reached", { description: "Upgrade to Pro for unlimited cover letters." });
+                await refreshGenerations();
                 return;
             }
 
@@ -88,8 +89,16 @@ export default function DashboardPage() {
 
             const data = await res.json();
             setCoverLetter(data.coverLetter);
-            await refreshGenerations();
             toast.success("Cover Letter Generated!");
+
+            // Use the authoritative count returned by the server — no Firestore read needed
+            if (typeof data.generationsUsed === "number") {
+                setGenerationsUsed(data.generationsUsed);
+            } else {
+                // Fallback: read from Firestore if the server didn't return a count
+                await new Promise((r) => setTimeout(r, 500));
+                await refreshGenerations();
+            }
 
             // Track Application Generation → auto-add to Tracker
             if (user && jobData) {

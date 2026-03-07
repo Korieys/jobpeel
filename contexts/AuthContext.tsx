@@ -9,7 +9,7 @@ import {
     GoogleAuthProvider
 } from "firebase/auth";
 import { auth, googleProvider, db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, collection, getDocs, query, where, addDoc } from "firebase/firestore";
+import { doc, getDoc, getDocFromServer, setDoc, collection, getDocs, query, where, addDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -60,6 +60,7 @@ interface AuthContextType {
     logout: () => Promise<void>;
     updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
     refreshGenerations: () => Promise<void>;
+    setGenerationsUsed: (count: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -139,7 +140,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!user) return;
         try {
             const docRef = doc(db, "users", user.uid);
-            const docSnap = await getDoc(docRef);
+            // Force a server read to bypass any local Firestore cache,
+            // ensuring we get the value the admin SDK just incremented.
+            const docSnap = await getDocFromServer(docRef);
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 setUserProfile(prev => prev ? { ...prev, generationsUsed: data.generationsUsed ?? 0 } : prev);
@@ -148,6 +151,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error("Error refreshing generations:", e);
         }
     }, [user]);
+
+    // Directly set the counter in context — used when the API returns the authoritative new value
+    const setGenerationsUsed = useCallback((count: number) => {
+        setUserProfile(prev => prev ? { ...prev, generationsUsed: count } : prev);
+    }, []);
 
     const signInWithGoogle = async () => {
         try {
@@ -208,7 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, userProfile, loading, signInWithGoogle, logout, updateUserProfile, refreshGenerations }}>
+        <AuthContext.Provider value={{ user, userProfile, loading, signInWithGoogle, logout, updateUserProfile, refreshGenerations, setGenerationsUsed }}>
             {children}
         </AuthContext.Provider>
     );
